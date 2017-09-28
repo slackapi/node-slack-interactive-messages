@@ -225,7 +225,8 @@ export default class SlackMessageAdapter {
         return true;
       }
 
-      // Dialog submissions must be responded to in under 3 sec. Setting timeout to  2.5sec to account for propagation
+      // Dialog submissions must be responded to in under 3 seconds
+      // Setting timeout to  2.5 seconds to account for propagation
       if (payload.type === 'dialog_submission') {
         const ms = 2500;
         if (callbackResult) {
