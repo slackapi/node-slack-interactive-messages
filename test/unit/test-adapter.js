@@ -6,7 +6,7 @@ var getRandomPort = require('get-random-port');
 var systemUnderTest = require('../../dist/adapter');
 var SlackMessageAdapter = systemUnderTest.default;
 
-// fixtures and test helpers
+// fixtures
 var workingVerificationToken = 'VERIFICATION_TOKEN';
 
 // helpers
@@ -26,7 +26,45 @@ function unregisterAllHandlers(adapter) {
   adapter.callbacks = []; // eslint-disable-line no-param-reassign
 }
 
+// shared tests
+function shouldRegisterWithCallbackId(methodName) {
+  describe('when registering with a callback_id', function () {
+    beforeEach(function () {
+      this.handler = function () { };
+    });
+    it('a plain string callback_id registers successfully', function () {
+      this.adapter[methodName]('my_callback', this.handler);
+      assertHandlerRegistered(this.adapter, this.handler);
+    });
+    it('a RegExp callback_id registers successfully', function () {
+      this.adapter[methodName](/\w+_callback/, this.handler);
+      assertHandlerRegistered(this.adapter, this.handler);
+    });
+    it('invalid callback_id types throw on registration', function () {
+      var handler = this.handler;
+      assert.throws(function () {
+        this.adapter[methodName](5, handler);
+      }, TypeError);
+      assert.throws(function () {
+        this.adapter[methodName](true, handler);
+      }, TypeError);
+      assert.throws(function () {
+        this.adapter[methodName]([], handler);
+      }, TypeError);
+      assert.throws(function () {
+        this.adapter[methodName](null, handler);
+      }, TypeError);
+      assert.throws(function () {
+        this.adapter[methodName](undefined, handler);
+      }, TypeError);
+    });
+  });
+}
+
+// tests
 describe('SlackMessageAdapter', function () {
+  beforeEach(function () {
+  });
   describe('constructor', function () {
     it('should build an instance', function () {
       var adapter = new SlackMessageAdapter(workingVerificationToken);
@@ -151,44 +189,20 @@ describe('SlackMessageAdapter', function () {
   describe('#action()', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
-      this.actionHandler = function () { };
     });
     it('should fail action registration without handler', function () {
       assert.throws(function () {
         this.adapter.action('my_callback');
       }, TypeError);
     });
-    // TODO: see if this can be reused in the options registration
-    describe('when registering with a callback_id', function () {
-      it('a plain string callback_id registers successfully', function () {
-        this.adapter.action('my_callback', this.actionHandler);
-        assertHandlerRegistered(this.adapter, this.actionHandler);
-      });
-      it('a RegExp callback_id registers successfully', function () {
-        this.adapter.action(/\w+_callback/, this.actionHandler);
-        assertHandlerRegistered(this.adapter, this.actionHandler);
-      });
-      it('invalid callback_id types throw on registration', function () {
-        var actionHandler = this.actionHandler;
-        assert.throws(function () {
-          this.adapter.action(5, actionHandler);
-        }, TypeError);
-        assert.throws(function () {
-          this.adapter.action(true, actionHandler);
-        }, TypeError);
-        assert.throws(function () {
-          this.adapter.action([], actionHandler);
-        }, TypeError);
-        assert.throws(function () {
-          this.adapter.action(null, actionHandler);
-        }, TypeError);
-        assert.throws(function () {
-          this.adapter.action(undefined, actionHandler);
-        }, TypeError);
-      });
-    });
-    // NOTE: the following probably only make sense for actions and not for options
+
+    // shared tests
+    shouldRegisterWithCallbackId('action');
+
     describe('when registering with a complex set of constraints', function () {
+      beforeEach(function () {
+        this.actionHandler = function () { };
+      });
       it('should register with valid type constraints successfully', function () {
         var adapter = this.adapter;
         var actionHandler = this.actionHandler;
@@ -239,5 +253,8 @@ describe('SlackMessageAdapter', function () {
         this.adapter.options('my_callback');
       }, TypeError);
     });
+
+    // shared tests
+    shouldRegisterWithCallbackId('options');
   });
 });
