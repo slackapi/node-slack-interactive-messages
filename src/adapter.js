@@ -181,7 +181,7 @@ export default class SlackMessageAdapter {
     // * "no suggestions" for menu options TODO: check that this is true
     let result = { status: 200, content: '' };
 
-    // only when a response_url is present, we need a `respond()` function that uses it to send the response
+    // when a response_url is present,`respond()` function created to to send a message using it
     let respond;
     if (payload.response_url) {
       respond = (message) => {
@@ -228,16 +228,26 @@ export default class SlackMessageAdapter {
 
       if (callbackResult) {
         if (respond) {
-          // TODO: make 2500 a config var OR make this whole using `respond()` for late Promises a config var (timeout = false maybe?)
+          // TODO: create a config var for the timeout length, and a magic value to disable
+          //       any special handling of the timeout (only meaningful for message actions so that
+          //       the developer can reliable use `respond()` five times)
           const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
             if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
-              // don't want to save the late promises for dialog submission, the response_url doesn't do the same
-              // thing as the response. the developer should be warned that the promise is taking too much time
+              // don't save late promises for dialog submission, the response_url doesn't do the
+              // same thing as the response. developer should be warned that the promise is taking
+              // too much time
               if (payload.type === 'dialog_submission') {
-                debug('WARNING: dialog submission returned a Promise that did not resolve under the timeout.');
+                debug('WARNING: Dialog submission returned a Promise that did not resolve under the timeout.');
                 return callbackResult;
               }
-              callbackResult.then(respond);
+
+              // save a late promise by sending an empty body in the response, and then using the
+              // response_url to send the eventually resolved value
+              callbackResult.then(respond).catch((callbackError) => {
+                // when the promise is late and fails, won't send it to the response_url, log it
+                debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
+                throw callbackError;
+              });
               return '';
             }
             throw error;
@@ -245,18 +255,21 @@ export default class SlackMessageAdapter {
           result = { status: 200, content: contentConsideringTimeout };
           return true;
         }
+
+        // Path for handling response without a `respond()` function
         const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
           if (error.code === utilErrorCodes.PROMISE_TIMEOUT &&
             // test for menu options request
             payload.type === 'interactive_message' && !payload.actions
           ) {
-            // cannot save the late promises for menu options requests, there is no response_url. the developer should
-            // be warned that the promise is taking too much time.
-            debug('WARNING: menu options request returned a Promise that did not resolve under the timeout.');
+            // don't save the late promises for menu options requests, there is no response_url.
+            // developer should be warned that the promise is taking too much time.
+            debug('WARNING: Menu options request returned a Promise that did not resolve under the timeout.');
             return callbackResult;
           }
           throw error;
         });
+
         result = { status: 200, content: contentConsideringTimeout };
         return true;
       }
