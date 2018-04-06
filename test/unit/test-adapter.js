@@ -151,6 +151,7 @@ describe('SlackMessageAdapter', function () {
   describe('#action()', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
+      this.actionHandler = function () { };
     });
     it('should fail action registration without handler', function () {
       assert.throws(function () {
@@ -159,22 +160,16 @@ describe('SlackMessageAdapter', function () {
     });
     // TODO: see if this can be reused in the options registration
     describe('when registering with a callback_id', function () {
-      // TODO: break out actionHandler definition
       it('a plain string callback_id registers successfully', function () {
-        var actionHandler = function () { };
-
-        this.adapter.action('my_callback', actionHandler);
-
-        assertHandlerRegistered(this.adapter, actionHandler);
+        this.adapter.action('my_callback', this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler);
       });
       it('a RegExp callback_id registers successfully', function () {
-        var actionHandler = function () { };
-
-        this.adapter.action(/\w+_callback/, actionHandler);
-        assertHandlerRegistered(this.adapter, actionHandler);
+        this.adapter.action(/\w+_callback/, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler);
       });
       it('invalid callback_id types throw on registration', function () {
-        var actionHandler = function () { };
+        var actionHandler = this.actionHandler;
         assert.throws(function () {
           this.adapter.action(5, actionHandler);
         }, TypeError);
@@ -195,14 +190,13 @@ describe('SlackMessageAdapter', function () {
     // NOTE: the following probably only make sense for actions and not for options
     describe('when registering with a complex set of constraints', function () {
       it('should register with valid type constraints successfully', function () {
-        var actionHandler = function () { };
         var adapter = this.adapter;
+        var actionHandler = this.actionHandler;
         var constraintsSet = [
           { type: 'button' },
           { type: 'select' },
           { type: 'dialog_submission' }
         ];
-
         constraintsSet.forEach(function (constraints) {
           adapter.action(constraints, actionHandler);
           assertHandlerRegistered(adapter, actionHandler, constraints);
@@ -210,34 +204,28 @@ describe('SlackMessageAdapter', function () {
         });
       });
       it('should throw when registering with invalid type constraints', function () {
-        var actionHandler = function () { };
-
+        var actionHandler = this.actionHandler;
         var constraints = { type: 'not_a_real_action_type' };
         assert.throws(function () {
           this.adapter.action(constraints, actionHandler);
         }, TypeError);
       });
       it('should register with valid compound constraints successfully', function () {
-        var actionHandler = function () { };
-
         var constraints = { callbackId: 'my_callback', type: 'button' };
-        this.adapter.action(constraints, actionHandler);
-        assertHandlerRegistered(this.adapter, actionHandler, constraints);
+        this.adapter.action(constraints, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
       it('should throw when registering with invalid compound constraints', function () {
-        var actionHandler = function () { };
-
+        var actionHandler = this.actionHandler;
         var constraints = { callbackId: /\w+_callback/, type: 'not_a_real_action_type' };
         assert.throws(function () {
           this.adapter.action(constraints, actionHandler);
         }, TypeError);
       });
       it('should register with unfurl constraint successfully', function () {
-        var actionHandler = function () { };
-
         var constraints = { unfurl: true };
-        this.adapter.action(constraints, actionHandler);
-        assertHandlerRegistered(this.adapter, actionHandler, constraints);
+        this.adapter.action(constraints, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
     });
   });
