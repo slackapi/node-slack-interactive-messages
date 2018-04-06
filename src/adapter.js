@@ -6,7 +6,7 @@ import isRegExp from 'lodash.isregexp';
 import isFunction from 'lodash.isfunction';
 import debugFactory from 'debug';
 import { createExpressMiddleware } from './express-middleware';
-import { packageIdentifier, promiseTimeout } from './util';
+import { packageIdentifier, promiseTimeout, errorCodes as utilErrorCodes } from './util';
 
 const debug = debugFactory('@slack/interactive-messages:adapter');
 
@@ -226,29 +226,37 @@ export default class SlackMessageAdapter {
         return true;
       }
 
-      // Dialog submissions must be responded to in under 3 seconds
-      // Setting timeout to  2.5 seconds to account for propagation
-      if (payload.type === 'dialog_submission' && callbackResult) {
-        // NOTE: this change will change the behavior of dialog submissions such that no return value results in an
-        // immediate `200 OK` response instead of keeping the response unfinished
-        result = { status: 200, content: promiseTimeout(2500, callbackResult) };
+      if (callbackResult) {
+        if (respond) {
+          // TODO: make 2500 a config var OR make this whole using `respond()` for late Promises a config var (timeout = false maybe?)
+          const contentUnderTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
+            // you don't want to save the late promises for dialog submission, the response_url doesn't do the same
+            // thing as the response, and it you want the developer to know they are using too much time.
+            if (payload.type === 'dialog_submission') {
+              debug('WARNING: dialog submission returned a Promise that did not resolve under the timeout.');
+              return callbackResult;
+            }
+            if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
+              callbackResult.then(respond);
+              return '';
+            }
+            throw error;
+          });
+          result = { status: 200, content: contentUnderTimeout };
+          return true;
+        }
+        const contentUnderTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
+          // test for menu options request
+          if (payload.type === 'interactive_message' && !payload.actions) {
+            debug('WARNING: menu options request returned a Promise that did not resolve under the timeout.');
+            return callbackResult;
+          }
+          throw error;
+        });
+        result = { status: 200, content: contentUnderTimeout };
         return true;
       }
 
-      if (callbackResult) {
-        // // Checking for Promise type
-        // if (typeof callbackResult.then === 'function') {
-        //   callbackResult.then(respond).catch((error) => {
-        //     debug('async error for callback. callback_id: %s, error: %s',
-        //           payload.callback_id, error.message);
-        //   });
-        //   return true;
-        // }
-        // NOTE: this change will change the behavior of message actions such that returning a promise in the callback
-        // will keep the response from being sent back, and possibly take longer than 3 seconds (a failure)
-        result = { status: 200, content: callbackResult };
-        return true;
-      }
       return true;
     });
 
