@@ -175,19 +175,20 @@ export default class SlackMessageAdapter {
   dispatch(payload) {
     const action = payload.actions && payload.actions[0];
 
-    // The following result value represents "no replacement"
-    let result = { status: 200 };
-    // when the matcher finds a dialog submission, it will populate this value with a function
-    let dialogPromiseResolve;
-    const respond = (message) => {
-      if (payload.response_url) {
+    // The following result value represents:
+    // * "no replacement" for message actions
+    // * "submission is valid" for dialog submissions
+    // * "no suggestions" for menu options TODO: check that this is true
+    let result = { status: 200, content: '' };
+
+    // only when a response_url is present, we need a `respond()` function that uses it to send the response
+    let respond;
+    if (payload.response_url) {
+      respond = (message) => {
         debug('sending async response');
         return this.axios.post(payload.response_url, message);
-      } else if (dialogPromiseResolve) {
-        dialogPromiseResolve(message);
-      }
-      return true;
-    };
+      };
+    }
 
     this.callbacks.some(([constraints, fn]) => {
       // Returning false in this function continues the iteration, and returning true ends it.
@@ -227,27 +228,24 @@ export default class SlackMessageAdapter {
 
       // Dialog submissions must be responded to in under 3 seconds
       // Setting timeout to  2.5 seconds to account for propagation
-      if (payload.type === 'dialog_submission') {
-        const ms = 2500;
-        if (callbackResult) {
-          result = { status: 200, content: promiseTimeout(ms, callbackResult) };
-        } else {
-          result = {
-            status: 200, content: new Promise((resolve) => { dialogPromiseResolve = resolve; }),
-          };
-        }
+      if (payload.type === 'dialog_submission' && callbackResult) {
+        // NOTE: this change will change the behavior of dialog submissions such that no return value results in an
+        // immediate `200 OK` response instead of keeping the response unfinished
+        result = { status: 200, content: promiseTimeout(2500, callbackResult) };
         return true;
       }
 
       if (callbackResult) {
-        // Checking for Promise type
-        if (typeof callbackResult.then === 'function') {
-          callbackResult.then(respond).catch((error) => {
-            debug('async error for callback. callback_id: %s, error: %s',
-                  payload.callback_id, error.message);
-          });
-          return true;
-        }
+        // // Checking for Promise type
+        // if (typeof callbackResult.then === 'function') {
+        //   callbackResult.then(respond).catch((error) => {
+        //     debug('async error for callback. callback_id: %s, error: %s',
+        //           payload.callback_id, error.message);
+        //   });
+        //   return true;
+        // }
+        // NOTE: this change will change the behavior of message actions such that returning a promise in the callback
+        // will keep the response from being sent back, and possibly take longer than 3 seconds (a failure)
         result = { status: 200, content: callbackResult };
         return true;
       }
