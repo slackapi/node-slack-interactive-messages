@@ -1,9 +1,8 @@
-var assert = require('assert');
 var http = require('http');
+var assert = require('chai').assert;
 var proxyquire = require('proxyquire');
 var nop = require('nop');
 var getRandomPort = require('get-random-port');
-var isFunction = require('lodash.isfunction');
 var systemUnderTest = require('../../dist/adapter');
 var SlackMessageAdapter = systemUnderTest.default;
 
@@ -14,7 +13,7 @@ describe('SlackMessageAdapter', function () {
   describe('constructor', function () {
     it('should build an instance', function () {
       var adapter = new SlackMessageAdapter(workingVerificationToken);
-      assert(adapter instanceof SlackMessageAdapter);
+      assert.instanceOf(adapter, SlackMessageAdapter);
     });
     it('should fail without a verification token', function () {
       assert.throws(function () {
@@ -35,7 +34,7 @@ describe('SlackMessageAdapter', function () {
       it('should reject', function () {
         return this.adapter.createServer()
           .then(function (server) {
-            assert.fail(server, null, 'a server was created');
+            assert.isNotOk(server, 'a server was created');
           })
           .catch(function (error) {
             if (error.code === 'MODULE_NOT_FOUND') {
@@ -55,7 +54,7 @@ describe('SlackMessageAdapter', function () {
       it('should reject', function () {
         return this.adapter.createServer()
           .then(function (server) {
-            assert.fail(server, null, 'a server was created');
+            assert.isNotOk(server, 'a server was created');
           })
           .catch(function (error) {
             if (error.code === 'MODULE_NOT_FOUND') {
@@ -69,7 +68,7 @@ describe('SlackMessageAdapter', function () {
 
     it('should return a Promise of an http.Server', function () {
       return this.adapter.createServer().then(function (server) {
-        assert(server instanceof http.Server);
+        assert.instanceOf(server, http.Server);
       });
     });
   });
@@ -128,7 +127,7 @@ describe('SlackMessageAdapter', function () {
     });
     it('should return a function', function () {
       var middleware = this.adapter.expressMiddleware();
-      assert(isFunction(middleware));
+      assert.isFunction(middleware);
     });
   });
 
