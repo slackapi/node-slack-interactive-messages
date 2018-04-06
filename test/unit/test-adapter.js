@@ -135,9 +135,131 @@ describe('SlackMessageAdapter', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
     });
-    it('should fail registration without handler', function () {
+    it('should fail action registration without handler', function () {
       assert.throws(function () {
         this.adapter.action('my_callback');
+      }, TypeError);
+    });
+    // TODO: see if this can be reused in the options registration
+    describe('when registering with a callback_id', function () {
+      // TODO: break out actionHandler definition
+      it('a plain string callback_id registers successfully', function () {
+        var actionHandler = function () { };
+        var callbackEntry;
+
+        this.adapter.action('my_callback', actionHandler);
+
+        // TODO: break into a helper that encapsulates knowledge of the internals and can assert
+        // that the function was registered
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[0];
+        assert.equal(callbackEntry[1], actionHandler);
+      });
+      it('a RegExp callback_id registers successfully', function () {
+        var actionHandler = function () { };
+        var callbackEntry;
+
+        this.adapter.action(/\w+_callback/, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[0];
+        assert.equal(callbackEntry[1], actionHandler);
+      });
+      it('invalid callback_id types throw on registration', function () {
+        var actionHandler = function () { };
+        assert.throws(function () {
+          this.adapter.action(5, actionHandler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter.action(true, actionHandler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter.action([], actionHandler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter.action(null, actionHandler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter.action(undefined, actionHandler);
+        }, TypeError);
+      });
+    });
+    // NOTE: the following probably only make sense for actions and not for options
+    describe('when registering with a complex set of constraints', function () {
+      it('should register with valid type constraints successfully', function () {
+        var actionHandler = function () { };
+        var callbackEntry;
+        var constraints;
+
+        // TODO: see how much shorter this can get with a registration internals assert helper
+        constraints = { type: 'button' };
+        this.adapter.action(constraints, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[0]; // index changes before each assert
+        assert.deepEqual(callbackEntry[0], constraints);
+        assert.equal(callbackEntry[1], actionHandler);
+
+        constraints = { type: 'select' };
+        this.adapter.action(constraints, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[1]; // index changes before each assert
+        assert.deepEqual(callbackEntry[0], constraints);
+        assert.equal(callbackEntry[1], actionHandler);
+
+        constraints = { type: 'dialog_submission' };
+        this.adapter.action(constraints, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[2]; // index changes before each assert
+        assert.deepEqual(callbackEntry[0], constraints);
+        assert.equal(callbackEntry[1], actionHandler);
+      });
+      it('should throw when registering with invalid type constraints', function () {
+        var actionHandler = function () { };
+
+        var constraints = { type: 'not_a_real_action_type' };
+        assert.throws(function () {
+          this.adapter.action(constraints, actionHandler);
+        }, TypeError);
+      });
+      it('should register with valid compound constraints successfully', function () {
+        var actionHandler = function () { };
+        var callbackEntry;
+
+        var constraints = { callbackId: 'my_callback', type: 'button' };
+        this.adapter.action(constraints, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[0];
+        assert.deepEqual(callbackEntry[0], constraints);
+        assert.equal(callbackEntry[1], actionHandler);
+      });
+      it('should throw when registering with invalid compound constraints', function () {
+        var actionHandler = function () { };
+
+        var constraints = { callbackId: /\w+_callback/, type: 'not_a_real_action_type' };
+        assert.throws(function () {
+          this.adapter.action(constraints, actionHandler);
+        }, TypeError);
+      });
+      it('should register with unfurl constraint successfully', function () {
+        var actionHandler = function () { };
+        var callbackEntry;
+
+        var constraints = { unfurl: true };
+        this.adapter.action(constraints, actionHandler);
+        assert.isNotEmpty(this.adapter.callbacks);
+        callbackEntry = this.adapter.callbacks[0];
+        assert.deepEqual(callbackEntry[0], constraints);
+        assert.equal(callbackEntry[1], actionHandler);
+      });
+    });
+  });
+
+  describe('#options()', function () {
+    beforeEach(function () {
+      this.adapter = new SlackMessageAdapter(workingVerificationToken);
+    });
+    it('should fail options registration without handler', function () {
+      assert.throws(function () {
+        this.adapter.options('my_callback');
       }, TypeError);
     });
   });

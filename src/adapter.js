@@ -49,8 +49,10 @@ function validateConstraints(matchingConstraints) {
  */
 function validateActionConstraints(actionConstraints) {
   if (actionConstraints.type &&
-      !(actionConstraints.type === 'select' || actionConstraints.type === 'button')) {
-    return new TypeError('Type must be \'select\' or \'button\'');
+      !(actionConstraints.type === 'select' || actionConstraints.type === 'button' ||
+        actionConstraints.type === 'dialog_submission')
+    ) {
+    return new TypeError('Type must be \'select\', \'button\', or \'dialog_submission\'');
   }
 
   // We don't need to validate unfurl, we'll just cooerce it to a boolean
