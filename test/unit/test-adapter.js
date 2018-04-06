@@ -10,6 +10,14 @@ var SlackMessageAdapter = systemUnderTest.default;
 var workingVerificationToken = 'VERIFICATION_TOKEN';
 
 // helpers
+/**
+ * Encapsulates knowledge of adapter handler registration internals and asserts that a handler
+ * was registered.
+ *
+ * @param {SlackMessageAdapter} adapter
+ * @param {Function} handler
+ * @param {Object} [constraints]
+ */
 function assertHandlerRegistered(adapter, handler, constraints) {
   var callbackEntry;
 
@@ -22,6 +30,10 @@ function assertHandlerRegistered(adapter, handler, constraints) {
   }
 }
 
+/**
+ * Encapsulates knowledge of adapter handler registration internals and unregistered all handlers.
+ * @param {SlackMessageAdapter} adapter
+ */
 function unregisterAllHandlers(adapter) {
   adapter.callbacks = []; // eslint-disable-line no-param-reassign
 }
@@ -61,7 +73,7 @@ function shouldRegisterWithCallbackId(methodName) {
   });
 }
 
-// tests
+// test suite
 describe('SlackMessageAdapter', function () {
   beforeEach(function () {
   });
