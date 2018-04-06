@@ -9,6 +9,23 @@ var SlackMessageAdapter = systemUnderTest.default;
 // fixtures and test helpers
 var workingVerificationToken = 'VERIFICATION_TOKEN';
 
+// helpers
+function assertHandlerRegistered(adapter, handler, constraints) {
+  var callbackEntry;
+
+  assert.isNotEmpty(adapter.callbacks);
+  callbackEntry = adapter.callbacks.find(function (aCallbackEntry) {
+    return handler === aCallbackEntry[1];
+  });
+  if (constraints) {
+    assert.deepEqual(callbackEntry[0], constraints);
+  }
+}
+
+function unregisterAllHandlers(adapter) {
+  adapter.callbacks = []; // eslint-disable-line no-param-reassign
+}
+
 describe('SlackMessageAdapter', function () {
   describe('constructor', function () {
     it('should build an instance', function () {
@@ -145,24 +162,16 @@ describe('SlackMessageAdapter', function () {
       // TODO: break out actionHandler definition
       it('a plain string callback_id registers successfully', function () {
         var actionHandler = function () { };
-        var callbackEntry;
 
         this.adapter.action('my_callback', actionHandler);
 
-        // TODO: break into a helper that encapsulates knowledge of the internals and can assert
-        // that the function was registered
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[0];
-        assert.equal(callbackEntry[1], actionHandler);
+        assertHandlerRegistered(this.adapter, actionHandler);
       });
       it('a RegExp callback_id registers successfully', function () {
         var actionHandler = function () { };
-        var callbackEntry;
 
         this.adapter.action(/\w+_callback/, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[0];
-        assert.equal(callbackEntry[1], actionHandler);
+        assertHandlerRegistered(this.adapter, actionHandler);
       });
       it('invalid callback_id types throw on registration', function () {
         var actionHandler = function () { };
@@ -187,30 +196,18 @@ describe('SlackMessageAdapter', function () {
     describe('when registering with a complex set of constraints', function () {
       it('should register with valid type constraints successfully', function () {
         var actionHandler = function () { };
-        var callbackEntry;
-        var constraints;
+        var adapter = this.adapter;
+        var constraintsSet = [
+          { type: 'button' },
+          { type: 'select' },
+          { type: 'dialog_submission' }
+        ];
 
-        // TODO: see how much shorter this can get with a registration internals assert helper
-        constraints = { type: 'button' };
-        this.adapter.action(constraints, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[0]; // index changes before each assert
-        assert.deepEqual(callbackEntry[0], constraints);
-        assert.equal(callbackEntry[1], actionHandler);
-
-        constraints = { type: 'select' };
-        this.adapter.action(constraints, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[1]; // index changes before each assert
-        assert.deepEqual(callbackEntry[0], constraints);
-        assert.equal(callbackEntry[1], actionHandler);
-
-        constraints = { type: 'dialog_submission' };
-        this.adapter.action(constraints, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[2]; // index changes before each assert
-        assert.deepEqual(callbackEntry[0], constraints);
-        assert.equal(callbackEntry[1], actionHandler);
+        constraintsSet.forEach(function (constraints) {
+          adapter.action(constraints, actionHandler);
+          assertHandlerRegistered(adapter, actionHandler, constraints);
+          unregisterAllHandlers(adapter);
+        });
       });
       it('should throw when registering with invalid type constraints', function () {
         var actionHandler = function () { };
@@ -222,14 +219,10 @@ describe('SlackMessageAdapter', function () {
       });
       it('should register with valid compound constraints successfully', function () {
         var actionHandler = function () { };
-        var callbackEntry;
 
         var constraints = { callbackId: 'my_callback', type: 'button' };
         this.adapter.action(constraints, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[0];
-        assert.deepEqual(callbackEntry[0], constraints);
-        assert.equal(callbackEntry[1], actionHandler);
+        assertHandlerRegistered(this.adapter, actionHandler, constraints);
       });
       it('should throw when registering with invalid compound constraints', function () {
         var actionHandler = function () { };
@@ -241,14 +234,10 @@ describe('SlackMessageAdapter', function () {
       });
       it('should register with unfurl constraint successfully', function () {
         var actionHandler = function () { };
-        var callbackEntry;
 
         var constraints = { unfurl: true };
         this.adapter.action(constraints, actionHandler);
-        assert.isNotEmpty(this.adapter.callbacks);
-        callbackEntry = this.adapter.callbacks[0];
-        assert.deepEqual(callbackEntry[0], constraints);
-        assert.equal(callbackEntry[1], actionHandler);
+        assertHandlerRegistered(this.adapter, actionHandler, constraints);
       });
     });
   });
