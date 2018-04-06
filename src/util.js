@@ -4,7 +4,7 @@ import pkg from '../package.json';
 function escape(s) { return s.replace('/', ':').replace(' ', '_'); }
 
 export const errorCodes = {
-  PROMISE_TIMEOUT: 'SLACKMESSAGEMIDDLEWARE_PROMISE_TIMEOUT',
+  PROMISE_TIMEOUT: 'SLACKMESSAGEUTIL_PROMISE_TIMEOUT',
 };
 
 export function promiseTimeout(ms, promise) {
