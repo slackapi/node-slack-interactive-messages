@@ -229,31 +229,35 @@ export default class SlackMessageAdapter {
       if (callbackResult) {
         if (respond) {
           // TODO: make 2500 a config var OR make this whole using `respond()` for late Promises a config var (timeout = false maybe?)
-          const contentUnderTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
-            // you don't want to save the late promises for dialog submission, the response_url doesn't do the same
-            // thing as the response, and it you want the developer to know they are using too much time.
-            if (payload.type === 'dialog_submission') {
-              debug('WARNING: dialog submission returned a Promise that did not resolve under the timeout.');
-              return callbackResult;
-            }
+          const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
             if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
+              // don't want to save the late promises for dialog submission, the response_url doesn't do the same
+              // thing as the response. the developer should be warned that the promise is taking too much time
+              if (payload.type === 'dialog_submission') {
+                debug('WARNING: dialog submission returned a Promise that did not resolve under the timeout.');
+                return callbackResult;
+              }
               callbackResult.then(respond);
               return '';
             }
             throw error;
           });
-          result = { status: 200, content: contentUnderTimeout };
+          result = { status: 200, content: contentConsideringTimeout };
           return true;
         }
-        const contentUnderTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
-          // test for menu options request
-          if (payload.type === 'interactive_message' && !payload.actions) {
+        const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
+          if (error.code === utilErrorCodes.PROMISE_TIMEOUT &&
+            // test for menu options request
+            payload.type === 'interactive_message' && !payload.actions
+          ) {
+            // cannot save the late promises for menu options requests, there is no response_url. the developer should
+            // be warned that the promise is taking too much time.
             debug('WARNING: menu options request returned a Promise that did not resolve under the timeout.');
             return callbackResult;
           }
           throw error;
         });
-        result = { status: 200, content: contentUnderTimeout };
+        result = { status: 200, content: contentConsideringTimeout };
         return true;
       }
 
