@@ -25,6 +25,7 @@ function assertHandlerRegistered(adapter, handler, constraints) {
   callbackEntry = adapter.callbacks.find(function (aCallbackEntry) {
     return handler === aCallbackEntry[1];
   });
+  assert.isOk(callbackEntry);
   if (constraints) {
     assert.deepEqual(callbackEntry[0], constraints);
   }
