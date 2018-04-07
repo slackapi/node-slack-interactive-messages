@@ -276,6 +276,7 @@ describe('SlackMessageAdapter', function () {
   describe('#dispatch()', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
+      this.synchronousTimeout = 2500;
     });
     // NOTE: the middleware has to check the verification token
     describe('when dispatching an message action request', function () {
@@ -298,6 +299,63 @@ describe('SlackMessageAdapter', function () {
         return Promise.resolve(dispatchResponse.content)
           .then(function (content) {
             assert.deepEqual(content, replacement);
+          });
+      });
+      it('should handle the callback returning a promise of a message before the timeout with a ' +
+         'synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = {
+          type: 'interactive_message',
+          callback_id: 'id',
+          text: 'example input message',
+          response_url: 'https://example.com'
+        };
+        var replacement = { text: 'example replacement message' };
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout);
+        this.adapter.action('id', function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve(replacement);
+            }, timeout / 2);
+          });
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.resolve(dispatchResponse.content)
+          .then(function (content) {
+            assert.deepEqual(content, replacement);
+          });
+      });
+      it('should handle the callback returning a promise of a message after the timeout with an ' +
+         'asynchronous response', function () {
+        // TODO: introduce nock to capture the request to the `response_url`
+        var dispatchResponse;
+        var requestPayload = {
+          type: 'interactive_message',
+          callback_id: 'id',
+          text: 'example input message',
+          response_url: 'https://example.com'
+        };
+        var replacement = { text: 'example replacement message' };
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action('id', function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve(replacement);
+            }, timeout + 20);
+          });
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.resolve(dispatchResponse.content)
+          .then(function (content) {
+            assert.deepEqual(content, '');
           });
       });
     });
