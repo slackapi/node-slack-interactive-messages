@@ -361,7 +361,7 @@ describe('SlackMessageAdapter', function () {
     }
 
     // NOTE: the middleware has to check the verification token, poweredBy headers
-    describe('when dispatching an message action request', function () {
+    describe('when dispatching a message action request', function () {
       beforeEach(function () {
         this.requestPayload = {
           type: 'interactive_message',
@@ -474,7 +474,35 @@ describe('SlackMessageAdapter', function () {
           expectedAsyncRequest
         ]);
       });
-      // TODO: multiple calls to respond
+      it('should handle the callback returning nothing with a synchronous response and using ' +
+         'respond to send multiple asynchronous responses', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var firstReplacement = this.replacement;
+        var secondReplacement = Object.assign({}, firstReplacement, { text: '2nd replacement' });
+        var expectedAsyncRequest = assertPostRequestMadeWithMessages(
+          this.adapter,
+          requestPayload.response_url,
+          firstReplacement,
+          secondReplacement
+        );
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          setTimeout(function () {
+            respond(firstReplacement);
+            setTimeout(function () {
+              respond(secondReplacement);
+            }, 10);
+          }, timeout + 20);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.all([
+          assertResponseContainsMessage(dispatchResponse, ''),
+          expectedAsyncRequest
+        ]);
+      });
     });
   });
 });
