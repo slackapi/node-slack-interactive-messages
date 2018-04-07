@@ -3,6 +3,7 @@
 var http = require('http');
 var assert = require('chai').assert;
 var proxyquire = require('proxyquire');
+var sinon = require('sinon');
 var nop = require('nop');
 var getRandomPort = require('get-random-port');
 var systemUnderTest = require('../../dist/adapter');
@@ -278,7 +279,7 @@ describe('SlackMessageAdapter', function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
       this.synchronousTimeout = 2500;
     });
-    // NOTE: the middleware has to check the verification token
+    // NOTE: the middleware has to check the verification token, poweredBy headers
     describe('when dispatching an message action request', function () {
       it('should handle the callback returning a message with a synchronous response', function () {
         var dispatchResponse;
@@ -331,8 +332,9 @@ describe('SlackMessageAdapter', function () {
       });
       it('should handle the callback returning a promise of a message after the timeout with an ' +
          'asynchronous response', function () {
-        // TODO: introduce nock to capture the request to the `response_url`
         var dispatchResponse;
+        var expectedSyncResponse;
+        var expectedAsyncRequest;
         var requestPayload = {
           type: 'interactive_message',
           callback_id: 'id',
@@ -341,6 +343,18 @@ describe('SlackMessageAdapter', function () {
         };
         var replacement = { text: 'example replacement message' };
         var timeout = this.synchronousTimeout;
+        var adapter = this.adapter;
+        expectedAsyncRequest = new Promise(function (resolve, reject) {
+          sinon.stub(adapter.axios, 'post').callsFake(function (url, body) {
+            try {
+              assert.equal(url, requestPayload.response_url);
+              assert.deepEqual(body, replacement);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          });
+        });
         this.timeout(timeout * 1.5);
         this.adapter.action('id', function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
@@ -353,10 +367,11 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
-        return Promise.resolve(dispatchResponse.content)
+        expectedSyncResponse = Promise.resolve(dispatchResponse.content)
           .then(function (content) {
             assert.deepEqual(content, '');
           });
+        return Promise.all([expectedSyncResponse, expectedAsyncRequest]);
       });
     });
   });
