@@ -13,74 +13,25 @@ var SlackMessageAdapter = systemUnderTest.default;
 var workingVerificationToken = 'VERIFICATION_TOKEN';
 
 // helpers
-/**
- * Encapsulates knowledge of adapter handler registration internals and asserts that a handler
- * was registered.
- *
- * @param {SlackMessageAdapter} adapter
- * @param {Function} handler
- * @param {Object} [constraints]
- */
-function assertHandlerRegistered(adapter, handler, constraints) {
-  var callbackEntry;
-
-  assert.isNotEmpty(adapter.callbacks);
-  callbackEntry = adapter.callbacks.find(function (aCallbackEntry) {
-    return handler === aCallbackEntry[1];
-  });
-  assert.isOk(callbackEntry);
-  if (constraints) {
-    assert.deepEqual(callbackEntry[0], constraints);
+function delayed(ms, value, rejectionReason) {
+  var error;
+  if (rejectionReason) {
+    error = new Error(rejectionReason);
   }
-}
-
-/**
- * Encapsulates knowledge of adapter handler registration internals and unregistered all handlers.
- * @param {SlackMessageAdapter} adapter
- */
-function unregisterAllHandlers(adapter) {
-  adapter.callbacks = []; // eslint-disable-line no-param-reassign
-}
-
-// shared tests
-function shouldRegisterWithCallbackId(methodName) {
-  describe('when registering with a callback_id', function () {
-    beforeEach(function () {
-      this.handler = function () { };
-    });
-    it('a plain string callback_id registers successfully', function () {
-      this.adapter[methodName]('my_callback', this.handler);
-      assertHandlerRegistered(this.adapter, this.handler);
-    });
-    it('a RegExp callback_id registers successfully', function () {
-      this.adapter[methodName](/\w+_callback/, this.handler);
-      assertHandlerRegistered(this.adapter, this.handler);
-    });
-    it('invalid callback_id types throw on registration', function () {
-      var handler = this.handler;
-      assert.throws(function () {
-        this.adapter[methodName](5, handler);
-      }, TypeError);
-      assert.throws(function () {
-        this.adapter[methodName](true, handler);
-      }, TypeError);
-      assert.throws(function () {
-        this.adapter[methodName]([], handler);
-      }, TypeError);
-      assert.throws(function () {
-        this.adapter[methodName](null, handler);
-      }, TypeError);
-      assert.throws(function () {
-        this.adapter[methodName](undefined, handler);
-      }, TypeError);
-    });
+  return new Promise(function (resolve, reject) {
+    var id = setTimeout(function () {
+      clearTimeout(id);
+      if (error) {
+        reject(error);
+      } else {
+        resolve(value);
+      }
+    }, ms);
   });
 }
 
 // test suite
 describe('SlackMessageAdapter', function () {
-  beforeEach(function () {
-  });
   describe('constructor', function () {
     it('should build an instance', function () {
       var adapter = new SlackMessageAdapter(workingVerificationToken);
@@ -202,6 +153,71 @@ describe('SlackMessageAdapter', function () {
     });
   });
 
+  // helpers
+  /**
+   * Encapsulates knowledge of adapter handler registration internals and asserts that a handler
+   * was registered.
+   *
+   * @param {SlackMessageAdapter} adapter actual instance where handler should be registered
+   * @param {Function} handler expected registered function
+   * @param {Object} [constraints] expected constraints for which handler should be registered
+   */
+  function assertHandlerRegistered(adapter, handler, constraints) {
+    var callbackEntry;
+
+    assert.isNotEmpty(adapter.callbacks);
+    callbackEntry = adapter.callbacks.find(function (aCallbackEntry) {
+      return handler === aCallbackEntry[1];
+    });
+    assert.isOk(callbackEntry);
+    if (constraints) {
+      assert.deepEqual(callbackEntry[0], constraints);
+    }
+  }
+
+  /**
+   * Encapsulates knowledge of adapter handler registration internals and unregistered all handlers.
+   * @param {SlackMessageAdapter} adapter
+   */
+  function unregisterAllHandlers(adapter) {
+    adapter.callbacks = []; // eslint-disable-line no-param-reassign
+  }
+
+  // shared tests
+  function shouldRegisterWithCallbackId(methodName) {
+    describe('when registering with a callback_id', function () {
+      beforeEach(function () {
+        this.handler = function () { };
+      });
+      it('a plain string callback_id registers successfully', function () {
+        this.adapter[methodName]('my_callback', this.handler);
+        assertHandlerRegistered(this.adapter, this.handler);
+      });
+      it('a RegExp callback_id registers successfully', function () {
+        this.adapter[methodName](/\w+_callback/, this.handler);
+        assertHandlerRegistered(this.adapter, this.handler);
+      });
+      it('invalid callback_id types throw on registration', function () {
+        var handler = this.handler;
+        assert.throws(function () {
+          this.adapter[methodName](5, handler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter[methodName](true, handler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter[methodName]([], handler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter[methodName](null, handler);
+        }, TypeError);
+        assert.throws(function () {
+          this.adapter[methodName](undefined, handler);
+        }, TypeError);
+      });
+    });
+  }
+
   describe('#action()', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
@@ -212,7 +228,7 @@ describe('SlackMessageAdapter', function () {
       }, TypeError);
     });
 
-    // shared tests
+    // execute shared tests
     shouldRegisterWithCallbackId('action');
 
     describe('when registering with a complex set of constraints', function () {
@@ -270,7 +286,7 @@ describe('SlackMessageAdapter', function () {
       }, TypeError);
     });
 
-    // shared tests
+    // execute shared tests
     shouldRegisterWithCallbackId('options');
   });
 
@@ -279,100 +295,125 @@ describe('SlackMessageAdapter', function () {
       this.adapter = new SlackMessageAdapter(workingVerificationToken);
       this.synchronousTimeout = 2500;
     });
+
+    /**
+     * Assert the result of a dispatch contains a certain message
+     * @param {Object} response actual return value of adapter.dispatch (synchronous reponse)
+     * @param {Object|string|undefined} message expected value of response body
+     * @returns {Promise<void>}
+     */
+    function assertResponseContainsMessage(response, message) {
+      return Promise.resolve(response.content)
+        .then(function (content) {
+          assert.deepEqual(content, message);
+        });
+    }
+
+    /**
+     * Encapsulates knowledge of how the adapter makes post requests by arranging a stub that can
+     * observe these requests and verify that one is made to the given url with the given message.
+     * @param {SlackMessageAdapter} adapter actual adapter
+     * @param {string} requestUrl expected request URL
+     * @param {Object|string} message expected message in request body
+     */
+    function assertPostRequestMadeWithMessage(adapter, requestUrl, message) {
+      return new Promise(function (resolve, reject) {
+        sinon.stub(adapter.axios, 'post').callsFake(function (url, body) {
+          try {
+            assert.equal(url, requestUrl);
+            assert.deepEqual(body, message);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+    }
+
     // NOTE: the middleware has to check the verification token, poweredBy headers
     describe('when dispatching an message action request', function () {
-      it('should handle the callback returning a message with a synchronous response', function () {
-        var dispatchResponse;
-        var requestPayload = {
+      beforeEach(function () {
+        this.requestPayload = {
           type: 'interactive_message',
           callback_id: 'id',
-          text: 'example input message',
+          actions: [{}],
           response_url: 'https://example.com'
         };
-        var replacement = { text: 'example replacement message' };
-        this.adapter.action('id', function (payload, respond) {
+        this.replacement = { text: 'example replacement message' };
+      });
+      it('should handle the callback returning a message with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var replacement = this.replacement;
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
           assert.isFunction(respond);
           return replacement;
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
-        return Promise.resolve(dispatchResponse.content)
-          .then(function (content) {
-            assert.deepEqual(content, replacement);
-          });
+        return assertResponseContainsMessage(dispatchResponse, replacement);
       });
       it('should handle the callback returning a promise of a message before the timeout with a ' +
          'synchronous response', function () {
         var dispatchResponse;
-        var requestPayload = {
-          type: 'interactive_message',
-          callback_id: 'id',
-          text: 'example input message',
-          response_url: 'https://example.com'
-        };
-        var replacement = { text: 'example replacement message' };
+        var requestPayload = this.requestPayload;
+        var replacement = this.replacement;
         var timeout = this.synchronousTimeout;
         this.timeout(timeout);
-        this.adapter.action('id', function (payload, respond) {
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
           assert.isFunction(respond);
-          return new Promise(function (resolve) {
-            setTimeout(function () {
-              resolve(replacement);
-            }, timeout / 2);
-          });
+          return delayed(timeout * 0.1, replacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
-        return Promise.resolve(dispatchResponse.content)
-          .then(function (content) {
-            assert.deepEqual(content, replacement);
-          });
+        return assertResponseContainsMessage(dispatchResponse, replacement);
       });
       it('should handle the callback returning a promise of a message after the timeout with an ' +
          'asynchronous response', function () {
         var dispatchResponse;
-        var expectedSyncResponse;
-        var expectedAsyncRequest;
-        var requestPayload = {
-          type: 'interactive_message',
-          callback_id: 'id',
-          text: 'example input message',
-          response_url: 'https://example.com'
-        };
-        var replacement = { text: 'example replacement message' };
+        var requestPayload = this.requestPayload;
+        var replacement = this.replacement;
+        var expectedAsyncRequest = assertPostRequestMadeWithMessage(
+          this.adapter,
+          requestPayload.response_url,
+          replacement
+        );
         var timeout = this.synchronousTimeout;
-        var adapter = this.adapter;
-        expectedAsyncRequest = new Promise(function (resolve, reject) {
-          sinon.stub(adapter.axios, 'post').callsFake(function (url, body) {
-            try {
-              assert.equal(url, requestPayload.response_url);
-              assert.deepEqual(body, replacement);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          });
-        });
         this.timeout(timeout * 1.5);
-        this.adapter.action('id', function (payload, respond) {
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
           assert.isFunction(respond);
-          return new Promise(function (resolve) {
-            setTimeout(function () {
-              resolve(replacement);
-            }, timeout + 20);
-          });
+          return delayed(timeout + 20, replacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
-        expectedSyncResponse = Promise.resolve(dispatchResponse.content)
-          .then(function (content) {
-            assert.deepEqual(content, '');
-          });
-        return Promise.all([expectedSyncResponse, expectedAsyncRequest]);
+        return Promise.all([
+          assertResponseContainsMessage(dispatchResponse, ''),
+          expectedAsyncRequest
+        ]);
       });
+      it('should handle the callback returning nothing and using respond to send a message', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var replacement = this.replacement;
+        var expectedAsyncRequest = assertPostRequestMadeWithMessage(
+          this.adapter,
+          requestPayload.response_url,
+          replacement
+        );
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          respond(replacement);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.all([
+          assertResponseContainsMessage(dispatchResponse, ''),
+          expectedAsyncRequest
+        ]);
+      });
+      // TODO: multiple calls to respond
     });
   });
 });
