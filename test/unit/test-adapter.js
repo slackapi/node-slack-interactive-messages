@@ -13,6 +13,14 @@ var SlackMessageAdapter = systemUnderTest.default;
 var workingVerificationToken = 'VERIFICATION_TOKEN';
 
 // helpers
+/**
+ * Returns a Promise that resolves or rejects in approximately the specified amount of time with
+ * the specified value or error reason.
+ * @param {number} ms time in milliseconds in which to resolve or reject
+ * @param {*} value value used for resolve
+ * @param {string} [rejectionReason] reason used for rejection
+ * @returns {Promise<*>} a promise of the value type
+ */
 function delayed(ms, value, rejectionReason) {
   var error;
   if (rejectionReason) {
@@ -312,22 +320,44 @@ describe('SlackMessageAdapter', function () {
     /**
      * Encapsulates knowledge of how the adapter makes post requests by arranging a stub that can
      * observe these requests and verify that one is made to the given url with the given message.
+     * If less than all of the messages are matched, if a request is mad and the body doesn't match
+     * and messages, or if the url doesn't match the requestUrl, this will result in a timeout (a
+     * promise that never resolves nor rejects).
      * @param {SlackMessageAdapter} adapter actual adapter
      * @param {string} requestUrl expected request URL
-     * @param {Object|string} message expected message in request body
+     * @param {...Object|string} messages expected messages in request body
      */
-    function assertPostRequestMadeWithMessage(adapter, requestUrl, message) {
-      return new Promise(function (resolve, reject) {
-        sinon.stub(adapter.axios, 'post').callsFake(function (url, body) {
+    function assertPostRequestMadeWithMessages(adapter, requestUrl) {
+      var messages = [].slice.call(arguments, 2);
+      var messagePromiseEntries = messages.map(function () {
+        var entry = {};
+        entry.promise = new Promise(function (resolve) {
+          entry.resolve = resolve;
+        });
+        return entry;
+      });
+
+      sinon.stub(adapter.axios, 'post').callsFake(function (url, body) {
+        var messageIndex;
+        if (url !== requestUrl) {
+          return;
+        }
+        messageIndex = messages.findIndex(function (message) {
           try {
-            assert.equal(url, requestUrl);
             assert.deepEqual(body, message);
-            resolve();
-          } catch (error) {
-            reject(error);
+            return true;
+          } catch (_) {
+            return false;
           }
         });
+        if (messageIndex >= 0) {
+          messagePromiseEntries[messageIndex].resolve();
+        }
       });
+
+      return Promise.all(messagePromiseEntries.map(function (entry) {
+        return entry.promise;
+      }));
     }
 
     // NOTE: the middleware has to check the verification token, poweredBy headers
@@ -375,7 +405,7 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var replacement = this.replacement;
-        var expectedAsyncRequest = assertPostRequestMadeWithMessage(
+        var expectedAsyncRequest = assertPostRequestMadeWithMessages(
           this.adapter,
           requestPayload.response_url,
           replacement
@@ -398,13 +428,44 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var replacement = this.replacement;
-        var expectedAsyncRequest = assertPostRequestMadeWithMessage(
+        var expectedAsyncRequest = assertPostRequestMadeWithMessages(
           this.adapter,
           requestPayload.response_url,
           replacement
         );
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          respond(replacement);
+          setTimeout(function () {
+            respond(replacement);
+          }, timeout + 20);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.all([
+          assertResponseContainsMessage(dispatchResponse, ''),
+          expectedAsyncRequest
+        ]);
+      });
+      it('should handle the callback returning a promise of a message after the timeout with an ' +
+         'asynchronous response and using respond to send another asynchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var firstReplacement = this.replacement;
+        var secondReplacement = Object.assign({}, firstReplacement, { text: '2nd replacement' });
+        var expectedAsyncRequest = assertPostRequestMadeWithMessages(
+          this.adapter,
+          requestPayload.response_url,
+          firstReplacement,
+          secondReplacement
+        );
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          setTimeout(function () {
+            respond(secondReplacement);
+          }, timeout + 30);
+          return delayed(timeout + 20, firstReplacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
