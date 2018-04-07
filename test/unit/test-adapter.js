@@ -436,9 +436,10 @@ describe('SlackMessageAdapter', function () {
         var timeout = this.synchronousTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          setTimeout(function () {
-            respond(replacement);
-          }, timeout + 20);
+          delayed(timeout + 20)
+            .then(function () {
+              respond(replacement);
+            });
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -462,9 +463,10 @@ describe('SlackMessageAdapter', function () {
         var timeout = this.synchronousTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          setTimeout(function () {
-            respond(secondReplacement);
-          }, timeout + 30);
+          delayed(timeout + 30)
+            .then(function () {
+              respond(secondReplacement);
+            });
           return delayed(timeout + 20, firstReplacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
@@ -489,12 +491,14 @@ describe('SlackMessageAdapter', function () {
         var timeout = this.synchronousTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          setTimeout(function () {
-            respond(firstReplacement);
-            setTimeout(function () {
+          delayed(timeout + 20)
+            .then(function () {
+              respond(firstReplacement);
+              return delayed(10);
+            })
+            .then(function () {
               respond(secondReplacement);
-            }, 10);
-          }, timeout + 20);
+            });
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -502,6 +506,190 @@ describe('SlackMessageAdapter', function () {
           assertResponseContainsMessage(dispatchResponse, ''),
           expectedAsyncRequest
         ]);
+      });
+    });
+
+    describe('when dispatching a dialog submission request', function () {
+      beforeEach(function () {
+        this.requestPayload = {
+          type: 'dialog_submission',
+          callback_id: 'id',
+          submission: {
+            email_address: 'ankur@h4x0r.com'
+          },
+          response_url: 'https://example.com'
+        };
+        this.submissionResponse = {
+          errors: [
+            {
+              name: 'email_address',
+              error: 'Sorry, this email domain is not authorized!'
+            }
+          ]
+        };
+        this.followUp = { text: 'thanks for submitting your email address' };
+      });
+      it('should handle the callback returning a message with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var submissionResponse = this.submissionResponse;
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return submissionResponse;
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, submissionResponse);
+      });
+
+      it('should handle the callback returning a promise of a message before the timeout with a ' +
+         'synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var submissionResponse = this.submissionResponse;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout);
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return delayed(timeout * 0.1, submissionResponse);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, submissionResponse);
+      });
+
+      it('should handle the callback returning a promise of a message after the timeout with a ' +
+         'synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var submissionResponse = this.submissionResponse;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return delayed(timeout + 20, submissionResponse);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, submissionResponse);
+      });
+
+      it('should handle the callback returning nothing with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, '');
+      });
+
+      it('should handle the callback using respond to send a follow up message', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var followUp = this.followUp;
+        var expectedAsyncRequest = assertPostRequestMadeWithMessages(
+          this.adapter,
+          requestPayload.response_url,
+          followUp
+        );
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+          delayed(timeout + 20)
+            .then(function () {
+              respond(followUp);
+            });
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.all([
+          assertResponseContainsMessage(dispatchResponse, ''),
+          expectedAsyncRequest
+        ]);
+      });
+    });
+
+    describe('when dispatching a menu options request', function () {
+      beforeEach(function () {
+        this.requestPayload = {
+          name: 'bug_name',
+          value: 'TRAC-12',
+          type: 'interactive_message',
+          callback_id: 'id'
+        };
+        this.optionsResponse = {
+          options: [
+            {
+              text: 'Buggy McBugface',
+              value: 'TRAC-12345'
+            }
+          ]
+        };
+      });
+      it('should handle the callback returning options with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var optionsResponse = this.optionsResponse;
+        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isUndefined(secondArg);
+          return optionsResponse;
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, optionsResponse);
+      });
+
+      it('should handle the callback returning a promise of options before the timeout with a ' +
+         'synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var optionsResponse = this.optionsResponse;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout);
+        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isUndefined(secondArg);
+          return delayed(timeout * 0.1, optionsResponse);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, optionsResponse);
+      });
+
+      it('should handle the callback returning a promise of options after the timeout with a ' +
+         'synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var optionsResponse = this.optionsResponse;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isUndefined(secondArg);
+          return delayed(timeout + 20, optionsResponse);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, optionsResponse);
+      });
+
+      it('should handle the callback returning nothing with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isUndefined(secondArg);
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, '');
       });
     });
   });
