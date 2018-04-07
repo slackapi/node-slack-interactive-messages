@@ -1,3 +1,5 @@
+/* global Promise */
+
 var http = require('http');
 var assert = require('chai').assert;
 var proxyquire = require('proxyquire');
@@ -269,5 +271,35 @@ describe('SlackMessageAdapter', function () {
 
     // shared tests
     shouldRegisterWithCallbackId('options');
+  });
+
+  describe('#dispatch()', function () {
+    beforeEach(function () {
+      this.adapter = new SlackMessageAdapter(workingVerificationToken);
+    });
+    // NOTE: the middleware has to check the verification token
+    describe('when dispatching an message action request', function () {
+      it('should handle the callback returning a message with a synchronous response', function () {
+        var dispatchResponse;
+        var requestPayload = {
+          type: 'interactive_message',
+          callback_id: 'id',
+          text: 'example input message',
+          response_url: 'https://example.com'
+        };
+        var replacement = { text: 'example replacement message' };
+        this.adapter.action('id', function (payload, respond) {
+          assert.deepEqual(payload, requestPayload);
+          assert.isFunction(respond);
+          return replacement;
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return Promise.resolve(dispatchResponse.content)
+          .then(function (content) {
+            assert.deepEqual(content, replacement);
+          });
+      });
+    });
   });
 });
