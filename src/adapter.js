@@ -67,13 +67,18 @@ export default class SlackMessageAdapter {
    * Create a message adapter.
    *
    * @param {string} verificationToken - Slack app verification token used to authenticate request
+   * @param {Object} [options]
+   * @param {number} [options.syncResponseTimeout=2500] - number of milliseconds to wait before
+   * flushing a syncrhonous response to an incoming request and falling back to an asynchronous
+   * response.
    */
-  constructor(verificationToken) {
+  constructor(verificationToken, { syncResponseTimeout } = { syncResponseTimeout: 2500 }) {
     if (!isString(verificationToken)) {
       throw new TypeError('SlackMessageAdapter needs a verification token');
     }
 
     this.verificationToken = verificationToken;
+    this.syncResponseTimeout = syncResponseTimeout;
     this.callbacks = [];
     this.axios = axios.create({
       headers: {
@@ -233,10 +238,9 @@ export default class SlackMessageAdapter {
 
       if (callbackResult) {
         if (respond) {
-          // TODO: create a config var for the timeout length, and a magic value to disable
-          //       any special handling of the timeout (only meaningful for message actions so that
-          //       the developer can reliable use `respond()` five times)
-          const contentConsideringTimeout = promiseTimeout(2500, callbackResult)
+          // TODO: have a special value for syncResponseTimeout that disables any special handling
+          // of a timeout
+          const contentConsideringTimeout = promiseTimeout(this.syncResponseTimeout, callbackResult)
             .catch((error) => {
               if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
                 // don't save late promises for dialog submission, the response_url doesn't do the
@@ -264,18 +268,19 @@ export default class SlackMessageAdapter {
         }
 
         // Path for handling response without a `respond()` function
-        const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
-          if (error.code === utilErrorCodes.PROMISE_TIMEOUT &&
-            // test for menu options request
-            payload.type === 'interactive_message' && !payload.actions
-          ) {
-            // don't save the late promises for menu options requests, there is no response_url.
-            // developer should be warned that the promise is taking too much time.
-            debug('WARNING: Menu options request returned a Promise that did not resolve under the timeout.');
-            return callbackResult;
-          }
-          throw error;
-        });
+        const contentConsideringTimeout = promiseTimeout(this.syncResponseTimeout, callbackResult)
+          .catch((error) => {
+            if (error.code === utilErrorCodes.PROMISE_TIMEOUT &&
+              // test for menu options request
+              payload.type === 'interactive_message' && !payload.actions
+            ) {
+              // don't save the late promises for menu options requests, there is no response_url.
+              // developer should be warned that the promise is taking too much time.
+              debug('WARNING: Menu options request returned a Promise that did not resolve under the timeout.');
+              return callbackResult;
+            }
+            throw error;
+          });
 
         result = { status: 200, content: contentConsideringTimeout };
         return true;

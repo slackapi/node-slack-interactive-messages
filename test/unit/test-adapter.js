@@ -19,13 +19,23 @@ describe('SlackMessageAdapter', function () {
     it('should build an instance', function () {
       var adapter = new SlackMessageAdapter(workingVerificationToken);
       assert.instanceOf(adapter, SlackMessageAdapter);
+      assert.equal(adapter.syncResponseTimeout, 2500);
     });
     it('should fail without a verification token', function () {
       assert.throws(function () {
         var adapter = new SlackMessageAdapter();  // eslint-disable-line no-unused-vars
       }, TypeError);
     });
+    it('should allow configuring of synchronous response timeout', function () {
+      var newValue = 20;
+      var adapter = new SlackMessageAdapter(workingVerificationToken, {
+        syncResponseTimeout: newValue
+      });
+      assert.equal(adapter.syncResponseTimeout, newValue);
+    });
   });
+
+  // TODO: use syncResponseTimeout config to make running all the timeout dependent tests faster
 
   describe('#createServer()', function () {
     beforeEach(function () {
@@ -283,8 +293,10 @@ describe('SlackMessageAdapter', function () {
 
   describe('#dispatch()', function () {
     beforeEach(function () {
-      this.adapter = new SlackMessageAdapter(workingVerificationToken);
-      this.synchronousTimeout = 2500;
+      this.adapter = new SlackMessageAdapter(workingVerificationToken, {
+        // using a short timout to make tests finish faster
+        syncResponseTimeout: 30
+      });
     });
 
     /**
@@ -372,7 +384,7 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var replacement = this.replacement;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
@@ -393,12 +405,12 @@ describe('SlackMessageAdapter', function () {
           requestPayload.response_url,
           replacement
         );
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
           assert.isFunction(respond);
-          return delayed(timeout + 20, replacement);
+          return delayed(timeout * 1.1, replacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -410,10 +422,10 @@ describe('SlackMessageAdapter', function () {
       it('should handle the callback returning a promise that fails after the timeout with a sychronous response', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function () {
-          return delayed(timeout + 20, undefined, 'test error');
+          return delayed(timeout * 1.1, undefined, 'test error');
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -422,7 +434,7 @@ describe('SlackMessageAdapter', function () {
       it('should handle the callback returning a promise that fails before the timeout with a sychronous response', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout);
         this.adapter.action(requestPayload.callback_id, function () {
           return delayed(timeout * 0.1, undefined, 'test error');
@@ -440,10 +452,10 @@ describe('SlackMessageAdapter', function () {
           requestPayload.response_url,
           replacement
         );
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          delayed(timeout + 20)
+          delayed(timeout * 1.1)
             .then(function () {
               respond(replacement);
             });
@@ -467,14 +479,14 @@ describe('SlackMessageAdapter', function () {
           firstReplacement,
           secondReplacement
         );
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          delayed(timeout + 30)
+          delayed(timeout * 1.2)
             .then(function () {
               respond(secondReplacement);
             });
-          return delayed(timeout + 20, firstReplacement);
+          return delayed(timeout * 1.1, firstReplacement);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -495,13 +507,13 @@ describe('SlackMessageAdapter', function () {
           firstReplacement,
           secondReplacement
         );
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          delayed(timeout + 20)
+          delayed(timeout * 1.1)
             .then(function () {
               respond(firstReplacement);
-              return delayed(10);
+              return delayed(timeout * 0.1);
             })
             .then(function () {
               respond(secondReplacement);
@@ -555,7 +567,7 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var submissionResponse = this.submissionResponse;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
@@ -572,12 +584,12 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var submissionResponse = this.submissionResponse;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
           assert.deepEqual(payload, requestPayload);
           assert.isFunction(respond);
-          return delayed(timeout + 20, submissionResponse);
+          return delayed(timeout * 1.1, submissionResponse);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
@@ -605,10 +617,10 @@ describe('SlackMessageAdapter', function () {
           requestPayload.response_url,
           followUp
         );
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, respond) {
-          delayed(timeout + 20)
+          delayed(timeout * 1.1)
             .then(function () {
               respond(followUp);
             });
@@ -658,7 +670,7 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var optionsResponse = this.optionsResponse;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout);
         this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
@@ -675,12 +687,12 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var optionsResponse = this.optionsResponse;
-        var timeout = this.synchronousTimeout;
+        var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
         this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
           assert.isUndefined(secondArg);
-          return delayed(timeout + 20, optionsResponse);
+          return delayed(timeout * 1.1, optionsResponse);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
