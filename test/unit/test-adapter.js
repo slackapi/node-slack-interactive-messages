@@ -8,35 +8,10 @@ var nop = require('nop');
 var getRandomPort = require('get-random-port');
 var systemUnderTest = require('../../dist/adapter');
 var SlackMessageAdapter = systemUnderTest.default;
+var delayed = require('../helpers').delayed;
 
 // fixtures
 var workingVerificationToken = 'VERIFICATION_TOKEN';
-
-// helpers
-/**
- * Returns a Promise that resolves or rejects in approximately the specified amount of time with
- * the specified value or error reason.
- * @param {number} ms time in milliseconds in which to resolve or reject
- * @param {*} value value used for resolve
- * @param {string} [rejectionReason] reason used for rejection
- * @returns {Promise<*>} a promise of the value type
- */
-function delayed(ms, value, rejectionReason) {
-  var error;
-  if (rejectionReason) {
-    error = new Error(rejectionReason);
-  }
-  return new Promise(function (resolve, reject) {
-    var id = setTimeout(function () {
-      clearTimeout(id);
-      if (error) {
-        reject(error);
-      } else {
-        resolve(value);
-      }
-    }, ms);
-  });
-}
 
 // test suite
 describe('SlackMessageAdapter', function () {
@@ -221,6 +196,11 @@ describe('SlackMessageAdapter', function () {
         }, TypeError);
         assert.throws(function () {
           this.adapter[methodName](undefined, handler);
+        }, TypeError);
+      });
+      it('non-function callbacks throw on registration', function () {
+        assert.throws(function () {
+          this.adapter[methodName]('my_callback', 5);
         }, TypeError);
       });
     });
@@ -423,6 +403,18 @@ describe('SlackMessageAdapter', function () {
           assertResponseContainsMessage(dispatchResponse, ''),
           expectedAsyncRequest
         ]);
+      });
+      it('should handle the callback returning a promise that fails after the timeout with a sychronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout * 1.5);
+        this.adapter.action(requestPayload.callback_id, function () {
+          return delayed(timeout + 20, undefined, 'test error');
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, '');
       });
       it('should handle the callback returning nothing and using respond to send a message', function () {
         var dispatchResponse;
@@ -712,6 +704,7 @@ describe('SlackMessageAdapter', function () {
           this.adapter.action('b', this.callback);
           response = this.adapter.dispatch(this.payload);
           assert(this.callback.notCalled);
+          assert.equal(response.status, 200);
           return assertResponseContainsMessage(response, '');
         });
 
@@ -720,6 +713,7 @@ describe('SlackMessageAdapter', function () {
           this.adapter.action(/b/, this.callback);
           response = this.adapter.dispatch(this.payload);
           assert(this.callback.notCalled);
+          assert.equal(response.status, 200);
           return assertResponseContainsMessage(response, '');
         });
       });
@@ -735,6 +729,7 @@ describe('SlackMessageAdapter', function () {
           this.adapter.action({ type: 'button' }, this.callback);
           response = this.adapter.dispatch(this.payload);
           assert(this.callback.notCalled);
+          assert.equal(response.status, 200);
           return assertResponseContainsMessage(response, '');
         });
 
@@ -756,6 +751,7 @@ describe('SlackMessageAdapter', function () {
           this.adapter.action({ unfurl: false }, this.callback);
           response = this.adapter.dispatch(this.payload);
           assert(this.callback.notCalled);
+          assert.equal(response.status, 200);
           return assertResponseContainsMessage(response, '');
         });
 
@@ -764,6 +760,30 @@ describe('SlackMessageAdapter', function () {
           this.adapter.dispatch(this.payload);
           assert(this.callback.called);
         });
+      });
+    });
+
+    it('should respond with an error when the registered callback throws', function () {
+      var response;
+      this.adapter.action('a', function () {
+        throw new Error('test error');
+      });
+      response = this.adapter.dispatch({ callback_id: 'a' });
+      assert.equal(response.status, 500);
+      return assertResponseContainsMessage(response, undefined);
+    });
+
+    // NOTE: is this really the behavior we want?
+    it('should respond with failing content when the callback returns a promise that fails', function () {
+      var response;
+      this.adapter.action('a', function () {
+        return Promise.reject(new Error('test error'));
+      });
+      response = this.adapter.dispatch({ callback_id: 'a' });
+      return Promise.resolve(response.content).then(function () {
+        throw new Error('expected content to fail');
+      }, function () {
+        return true;
       });
     });
   });

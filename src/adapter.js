@@ -233,27 +233,28 @@ export default class SlackMessageAdapter {
           // TODO: create a config var for the timeout length, and a magic value to disable
           //       any special handling of the timeout (only meaningful for message actions so that
           //       the developer can reliable use `respond()` five times)
-          const contentConsideringTimeout = promiseTimeout(2500, callbackResult).catch((error) => {
-            if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
-              // don't save late promises for dialog submission, the response_url doesn't do the
-              // same thing as the response. developer should be warned that the promise is taking
-              // too much time
-              if (payload.type === 'dialog_submission') {
-                debug('WARNING: Dialog submission returned a Promise that did not resolve under the timeout.');
-                return callbackResult;
-              }
+          const contentConsideringTimeout = promiseTimeout(2500, callbackResult)
+            .catch((error) => {
+              if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
+                // don't save late promises for dialog submission, the response_url doesn't do the
+                // same thing as the response. developer should be warned that the promise is taking
+                // too much time
+                if (payload.type === 'dialog_submission') {
+                  debug('WARNING: Dialog submission returned a Promise that did not resolve under the timeout.');
+                  return callbackResult;
+                }
 
-              // save a late promise by sending an empty body in the response, and then using the
-              // response_url to send the eventually resolved value
-              callbackResult.then(respond).catch((callbackError) => {
-                // when the promise is late and fails, won't send it to the response_url, log it
-                debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
-                throw callbackError;
-              });
-              return '';
-            }
-            throw error;
-          });
+                // save a late promise by sending an empty body in the response, and then using the
+                // response_url to send the eventually resolved value
+                callbackResult.then(respond).catch((callbackError) => {
+                  // when the promise is late and fails, won't send it to the response_url, log it
+                  debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
+                  throw callbackError;
+                });
+                return '';
+              }
+              throw error;
+            });
           result = { status: 200, content: contentConsideringTimeout };
           return true;
         }
