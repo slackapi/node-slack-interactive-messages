@@ -206,6 +206,9 @@ export default class SlackMessageAdapter {
     let respond;
     if (payload.response_url) {
       respond = (message) => {
+        if (typeof message.then === 'function') {
+          throw new TypeError('Cannot use a Promise as the parameter for respond()');
+        }
         debug('sending async response');
         return this.axios.post(payload.response_url, message);
       };

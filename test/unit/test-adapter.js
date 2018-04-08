@@ -850,5 +850,16 @@ describe('SlackMessageAdapter', function () {
       assert.equal(response.status, 500);
       return assertResponseContainsMessage(response, undefined);
     });
+
+    it('should fail with an error when calling respond inside a callback with a promise', function (done) {
+      this.adapter.action('a', function (payload, respond) {
+        assert.isFunction(respond);
+        assert.throws(function () {
+          respond(Promise.resolve('b'));
+        }, TypeError);
+        done();
+      });
+      this.adapter.dispatch({ callback_id: 'a', response_url: 'http://example.com' });
+    });
   });
 });
