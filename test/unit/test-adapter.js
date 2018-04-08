@@ -124,22 +124,6 @@ describe('SlackMessageAdapter', function () {
         assert(!self.server.listening);
       });
     });
-    it('should return a rejected Promise if called before the server is listening', function (done) {
-      var adapter = new SlackMessageAdapter(workingVerificationToken);
-      getRandomPort(function (error, port) {
-        if (error) return done(error);
-        adapter.start(port);
-        return adapter.stop()
-          .then(function () {
-            done(new Error('should not successfully stop'));
-          })
-          .catch(function (stopError) {
-            assert.instanceOf(stopError, Error);
-            done();
-          })
-          .catch(done);
-      });
-    });
   });
 
   describe('#expressMiddleware()', function () {
