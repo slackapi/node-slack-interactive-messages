@@ -18,6 +18,9 @@ const debug = debugFactory('@slack/interactive-messages:adapter');
  */
 function formatMatchingConstraints(matchingConstraints) {
   let ret = {};
+  if (typeof matchingConstraints === 'undefined' || matchingConstraints === null) {
+    throw new TypeError('Callback ID cannot be undefined or null');
+  }
   if (!isPlainObject(matchingConstraints)) {
     ret.callbackId = matchingConstraints;
   } else {
@@ -253,7 +256,8 @@ export default class SlackMessageAdapter {
                 });
                 return '';
               }
-              throw error;
+              // NOTE: this should either not happen or be configurable
+              return 'An error occurred. Please report this to the Slack App developer.';
             });
           result = { status: 200, content: contentConsideringTimeout };
           return true;

@@ -182,25 +182,27 @@ describe('SlackMessageAdapter', function () {
       });
       it('invalid callback_id types throw on registration', function () {
         var handler = this.handler;
+        var adapter = this.adapter;
         assert.throws(function () {
-          this.adapter[methodName](5, handler);
+          adapter[methodName](5, handler);
         }, TypeError);
         assert.throws(function () {
-          this.adapter[methodName](true, handler);
+          adapter[methodName](true, handler);
         }, TypeError);
         assert.throws(function () {
-          this.adapter[methodName]([], handler);
+          adapter[methodName]([], handler);
         }, TypeError);
         assert.throws(function () {
-          this.adapter[methodName](null, handler);
+          adapter[methodName](null, handler);
         }, TypeError);
         assert.throws(function () {
-          this.adapter[methodName](undefined, handler);
+          adapter[methodName](undefined, handler);
         }, TypeError);
       });
       it('non-function callbacks throw on registration', function () {
+        var adapter = this.adapter;
         assert.throws(function () {
-          this.adapter[methodName]('my_callback', 5);
+          adapter[methodName]('my_callback', 5);
         }, TypeError);
       });
     });
@@ -238,10 +240,11 @@ describe('SlackMessageAdapter', function () {
         });
       });
       it('should throw when registering with invalid type constraints', function () {
+        var adapter = this.adapter;
         var actionHandler = this.actionHandler;
         var constraints = { type: 'not_a_real_action_type' };
         assert.throws(function () {
-          this.adapter.action(constraints, actionHandler);
+          adapter.action(constraints, actionHandler);
         }, TypeError);
       });
       it('should register with valid compound constraints successfully', function () {
@@ -415,6 +418,18 @@ describe('SlackMessageAdapter', function () {
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
         return assertResponseContainsMessage(dispatchResponse, '');
+      });
+      it('should handle the callback returning a promise that fails before the timeout with a sychronous response', function () {
+        var dispatchResponse;
+        var requestPayload = this.requestPayload;
+        var timeout = this.synchronousTimeout;
+        this.timeout(timeout);
+        this.adapter.action(requestPayload.callback_id, function () {
+          return delayed(timeout * 0.1, undefined, 'test error');
+        });
+        dispatchResponse = this.adapter.dispatch(requestPayload);
+        assert.equal(dispatchResponse.status, 200);
+        return assertResponseContainsMessage(dispatchResponse, 'An error occurred. Please report this to the Slack App developer.');
       });
       it('should handle the callback returning nothing and using respond to send a message', function () {
         var dispatchResponse;
