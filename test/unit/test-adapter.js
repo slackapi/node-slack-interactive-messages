@@ -692,5 +692,79 @@ describe('SlackMessageAdapter', function () {
         return assertResponseContainsMessage(dispatchResponse, '');
       });
     });
+
+    describe('callback matching', function () {
+      // TODO: is this really the behavior we want?
+      it('should return a blank success when there are no callbacks registered', function () {
+        var response = this.adapter.dispatch({});
+        assert.equal(response.status, 200);
+        return assertResponseContainsMessage(response, '');
+      });
+
+      describe('callback ID based matching', function () {
+        beforeEach(function () {
+          this.payload = { callback_id: 'a' };
+          this.callback = sinon.spy();
+        });
+
+        it('should return a blank success with a string mismatch', function () {
+          var response;
+          this.adapter.action('b', this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          return assertResponseContainsMessage(response, '');
+        });
+
+        it('should return a blank success with a regexp mismatch', function () {
+          var response;
+          this.adapter.action(/b/, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          return assertResponseContainsMessage(response, '');
+        });
+      });
+
+      describe('type based matching', function () {
+        beforeEach(function () {
+          this.payload = { callback_id: 'a', actions: [{ type: 'select' }] };
+          this.callback = sinon.spy();
+        });
+
+        it('should return a blank success with type is present in constraints and it mismatches', function () {
+          var response;
+          this.adapter.action({ type: 'button' }, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          return assertResponseContainsMessage(response, '');
+        });
+
+        it('should match when type not present in constraints', function () {
+          this.adapter.action({}, this.callback);
+          this.adapter.dispatch(this.payload);
+          assert(this.callback.called);
+        });
+      });
+
+      describe('unfurl based matching', function () {
+        beforeEach(function () {
+          this.payload = { callback_id: 'a', is_app_unfurl: true };
+          this.callback = sinon.spy();
+        });
+
+        it('should return a blank success with unfurl is present in constraints and it mismatches', function () {
+          var response;
+          this.adapter.action({ unfurl: false }, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          return assertResponseContainsMessage(response, '');
+        });
+
+        it('should match when unfurl not present in constraints', function () {
+          this.adapter.action({}, this.callback);
+          this.adapter.dispatch(this.payload);
+          assert(this.callback.called);
+        });
+      });
+    });
   });
 });
