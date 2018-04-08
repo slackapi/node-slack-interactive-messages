@@ -33,6 +33,16 @@ describe('SlackMessageAdapter', function () {
       });
       assert.equal(adapter.syncResponseTimeout, newValue);
     });
+    it('should fail when the synchronous response timeout is out of range', function () {
+      assert.throws(function () {
+        // eslint-disable-next-line no-unused-vars
+        var a = new SlackMessageAdapter(workingVerificationToken, { syncResponseTimeout: 0 });
+      }, TypeError);
+      assert.throws(function () {
+        // eslint-disable-next-line no-unused-vars
+        var a = new SlackMessageAdapter(workingVerificationToken, { syncResponseTimeout: 3001 });
+      }, TypeError);
+    });
   });
 
   // TODO: use syncResponseTimeout config to make running all the timeout dependent tests faster

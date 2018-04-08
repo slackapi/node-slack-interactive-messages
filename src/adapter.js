@@ -77,6 +77,10 @@ export default class SlackMessageAdapter {
       throw new TypeError('SlackMessageAdapter needs a verification token');
     }
 
+    if (syncResponseTimeout > 3000 || syncResponseTimeout < 1) {
+      throw new TypeError('syncResponseTimeout must be between 1 and 3000');
+    }
+
     this.verificationToken = verificationToken;
     this.syncResponseTimeout = syncResponseTimeout;
     this.callbacks = [];
