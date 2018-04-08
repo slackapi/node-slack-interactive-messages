@@ -52,9 +52,9 @@ function validateConstraints(matchingConstraints) {
  */
 function validateActionConstraints(actionConstraints) {
   if (actionConstraints.type &&
-      !(actionConstraints.type === 'select' || actionConstraints.type === 'button' ||
-        actionConstraints.type === 'dialog_submission')
-    ) {
+    !(actionConstraints.type === 'select' || actionConstraints.type === 'button' ||
+    actionConstraints.type === 'dialog_submission')
+  ) {
     return new TypeError('Type must be \'select\', \'button\', or \'dialog_submission\'');
   }
 
@@ -112,15 +112,15 @@ export default class SlackMessageAdapter {
       import('express'),
       import('body-parser'),
     ]))
-    .then(([express, bodyParser]) => {
-      const app = express();
-      app.use(bodyParser.urlencoded({ extended: false }));
-      app.post(path, this.expressMiddleware());
+      .then(([express, bodyParser]) => {
+        const app = express();
+        app.use(bodyParser.urlencoded({ extended: false }));
+        app.post(path, this.expressMiddleware());
 
-      debug('server created - path: %s', path);
+        debug('server created - path: %s', path);
 
-      return http.createServer(app);
-    });
+        return http.createServer(app);
+      });
   }
 
   start(port) {
@@ -234,11 +234,11 @@ export default class SlackMessageAdapter {
       }
 
       if ('unfurl' in constraints &&
-           (
-             (constraints.unfurl && !payload.is_app_unfurl) ||
-             (!constraints.unfurl && payload.is_app_unfurl)
-           )
-         ) {
+        (
+          (constraints.unfurl && !payload.is_app_unfurl) ||
+          (!constraints.unfurl && payload.is_app_unfurl)
+        )
+      ) {
         return false;
       }
 

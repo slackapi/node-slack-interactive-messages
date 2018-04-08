@@ -23,7 +23,7 @@ describe('SlackMessageAdapter', function () {
     });
     it('should fail without a verification token', function () {
       assert.throws(function () {
-        var adapter = new SlackMessageAdapter();  // eslint-disable-line no-unused-vars
+        var adapter = new SlackMessageAdapter(); // eslint-disable-line no-unused-vars
       }, TypeError);
     });
     it('should allow configuring of synchronous response timeout', function () {
