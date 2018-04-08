@@ -71,8 +71,14 @@ export default class SlackMessageAdapter {
    * @param {number} [options.syncResponseTimeout=2500] - number of milliseconds to wait before
    * flushing a syncrhonous response to an incoming request and falling back to an asynchronous
    * response.
+   * @param {boolean} [options.lateResponseFallbackEnabled=true] - whether or not promises that
+   * resolve after the syncResponseTimeout can fallback to a request for the response_url. this only
+   * works in cases where the semantic meaning of the response and the response_url are the same.
    */
-  constructor(verificationToken, { syncResponseTimeout } = { syncResponseTimeout: 2500 }) {
+  constructor(verificationToken, {
+    syncResponseTimeout = 2500,
+    lateResponseFallbackEnabled = true,
+  } = {}) {
     if (!isString(verificationToken)) {
       throw new TypeError('SlackMessageAdapter needs a verification token');
     }
@@ -83,6 +89,7 @@ export default class SlackMessageAdapter {
 
     this.verificationToken = verificationToken;
     this.syncResponseTimeout = syncResponseTimeout;
+    this.lateResponseFallbackEnabled = lateResponseFallbackEnabled;
     this.callbacks = [];
     this.axios = axios.create({
       headers: {
@@ -241,55 +248,32 @@ export default class SlackMessageAdapter {
       }
 
       if (callbackResult) {
-        if (respond) {
-          // TODO: have a special value for syncResponseTimeout that disables any special handling
-          // of a timeout
-          const contentConsideringTimeout = promiseTimeout(this.syncResponseTimeout, callbackResult)
-            .catch((error) => {
-              if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
-                // don't save late promises for dialog submission, the response_url doesn't do the
-                // same thing as the response. developer should be warned that the promise is taking
-                // too much time
-                if (payload.type === 'dialog_submission') {
-                  debug('WARNING: Dialog submission returned a Promise that did not resolve under the timeout.');
-                  return callbackResult;
-                }
-
-                // save a late promise by sending an empty body in the response, and then using the
-                // response_url to send the eventually resolved value
-                callbackResult.then(respond).catch((callbackError) => {
-                  // when the promise is late and fails, won't send it to the response_url, log it
-                  debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
-                  throw callbackError;
-                });
-                return '';
-              }
-              // NOTE: this should either not happen or be configurable
-              return 'An error occurred. Please report this to the Slack App developer.';
-            });
-          result = { status: 200, content: contentConsideringTimeout };
-          return true;
-        }
-
-        // Path for handling response without a `respond()` function
         const contentConsideringTimeout = promiseTimeout(this.syncResponseTimeout, callbackResult)
           .catch((error) => {
-            if (error.code === utilErrorCodes.PROMISE_TIMEOUT &&
-              // test for menu options request
-              payload.type === 'interactive_message' && !payload.actions
-            ) {
-              // don't save the late promises for menu options requests, there is no response_url.
-              // developer should be warned that the promise is taking too much time.
-              debug('WARNING: Menu options request returned a Promise that did not resolve under the timeout.');
-              return callbackResult;
-            }
-            throw error;
-          });
+            if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
+              // don't save late promises for dialog submission, the response_url doesn't do the
+              // same thing as the response. developer should be warned that the promise is taking
+              // too much time
+              if (!this.lateResponseFallbackEnabled || !respond || payload.type === 'dialog_submission') {
+                debug('WARNING: The response Promise did not resolve under the timeout.');
+                return callbackResult;
+              }
 
+              // save a late promise by sending an empty body in the response, and then using the
+              // response_url to send the eventually resolved value
+              callbackResult.then(respond).catch((callbackError) => {
+                // when the promise is late and fails, won't send it to the response_url, log it
+                debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
+                throw callbackError;
+              });
+              return '';
+            }
+            // NOTE: this should either not happen or be configurable
+            return 'An error occurred. Please report this to the app developer.';
+          });
         result = { status: 200, content: contentConsideringTimeout };
         return true;
       }
-
       return true;
     });
 

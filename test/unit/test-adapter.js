@@ -451,7 +451,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         assert.equal(dispatchResponse.status, 200);
-        return assertResponseContainsMessage(dispatchResponse, 'An error occurred. Please report this to the Slack App developer.');
+        return assertResponseContainsMessage(dispatchResponse, 'An error occurred. Please report this to the app developer.');
       });
       it('should handle the callback returning nothing and using respond to send a message', function () {
         var dispatchResponse;
@@ -535,6 +535,47 @@ describe('SlackMessageAdapter', function () {
           assertResponseContainsMessage(dispatchResponse, ''),
           expectedAsyncRequest
         ]);
+      });
+      describe('when lateResponseFallbackEnabled is configured as false', function () {
+        beforeEach(function () {
+          this.adapter = new SlackMessageAdapter(workingVerificationToken, {
+            syncResponseTimeout: 30,
+            lateResponseFallbackEnabled: false
+          });
+        });
+        it('should handle the callback returning a promise of a message after the timeout with a ' +
+            'synchronous response', function () {
+          var dispatchResponse;
+          var requestPayload = this.requestPayload;
+          var replacement = this.replacement;
+          var timeout = this.adapter.syncResponseTimeout;
+          this.timeout(timeout * 1.5);
+          this.adapter.action(requestPayload.callback_id, function (payload, respond) {
+            assert.deepEqual(payload, requestPayload);
+            assert.isFunction(respond);
+            return delayed(timeout * 1.1, replacement);
+          });
+          dispatchResponse = this.adapter.dispatch(requestPayload);
+          assert.equal(dispatchResponse.status, 200);
+          return assertResponseContainsMessage(dispatchResponse, replacement);
+        });
+        it('should handle the callback returning a promise that fails after the timeout with a ' +
+           'sychronous response', function () {
+          var dispatchResponse;
+          var requestPayload = this.requestPayload;
+          var timeout = this.adapter.syncResponseTimeout;
+          this.timeout(timeout * 1.5);
+          this.adapter.action(requestPayload.callback_id, function () {
+            return delayed(timeout * 1.1, undefined, 'test error');
+          });
+          dispatchResponse = this.adapter.dispatch(requestPayload);
+          assert.equal(dispatchResponse.status, 200);
+          return Promise.resolve(dispatchResponse.content).then(function () {
+            throw new Error('should not resolve');
+          }, function (error) {
+            assert.equal(error.message, 'test error');
+          });
+        });
       });
     });
 
@@ -808,20 +849,6 @@ describe('SlackMessageAdapter', function () {
       response = this.adapter.dispatch({ callback_id: 'a' });
       assert.equal(response.status, 500);
       return assertResponseContainsMessage(response, undefined);
-    });
-
-    // NOTE: is this really the behavior we want?
-    it('should respond with failing content when the callback returns a promise that fails', function () {
-      var response;
-      this.adapter.action('a', function () {
-        return Promise.reject(new Error('test error'));
-      });
-      response = this.adapter.dispatch({ callback_id: 'a' });
-      return Promise.resolve(response.content).then(function () {
-        throw new Error('expected content to fail');
-      }, function () {
-        return true;
-      });
     });
   });
 });
