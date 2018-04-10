@@ -100,11 +100,16 @@ export default class SlackMessageAdapter {
     debug('instantiated');
   }
 
+  /* Interface for using the built-in server */
+
   /**
-   * Create a server that's ready to serve requests from Slack's interactive messages.
+   * Create a server that dispatches Slack's interactive message actions and menu requests to this
+   * message adapter instance. Use this method if your application will handle starting the server.
    *
    * @param {string} [path=/slack/actions] - The path portion of the URL where the server will
    * listen for requests from Slack's interactive messages.
+   * @returns - A promise that resolves to an instance of http.Server and will dispatch interactive
+   * message actions and options requests to this message adapter instance
    */
   createServer(path = '/slack/actions') {
     // TODO: more options (like https)
@@ -123,6 +128,13 @@ export default class SlackMessageAdapter {
       });
   }
 
+  /**
+   * Start a built-in server that dispatches Slack's interactive message actions and menu requests
+   * to this message adapter interface.
+   *
+   * @param {number} port
+   * @requires {Promise<void>} - A promise that resolves once the server is ready
+   */
   start(port) {
     return this.createServer()
       .then(server => new Promise((resolve, reject) => {
@@ -133,6 +145,11 @@ export default class SlackMessageAdapter {
       }));
   }
 
+  /**
+   * Stop the previously started built-in server.
+   *
+   * @returns {Promise<void>} - A promise that resolves once the server is cleaned up.
+   */
   stop() {
     return new Promise((resolve, reject) => {
       if (this.server) {
@@ -150,10 +167,30 @@ export default class SlackMessageAdapter {
     });
   }
 
+  /* Interface for bringing your own server */
+
+  /**
+   * Create a middleware function that can be used to integrate with the `express` web framework
+   * in order for incoming requests to be dispatched to this message adapter instance.
+   *
+   * @returns {ExpressMiddlewareFunc} - A middleware function
+   */
   expressMiddleware() {
     return createExpressMiddleware(this);
   }
 
+  /* Interface for adding handlers */
+
+  /**
+   * Add a handler for an interactive message action.
+   *
+   * @param {Object|string|RegExp} matchingConstraints - the callback ID (as a string or RegExp) or
+   * an object describing the constrants to select actions for the handler.
+   * @param {string|RegExp} matchingConstraints.callbackId
+   * @param {string} matchingConstraints.type
+   * @param {boolean} matchingConstraints.unfurl
+   * @param {ActionHandler} callback
+   */
   action(matchingConstraints, callback) {
     const actionConstraints = formatMatchingConstraints(matchingConstraints);
 
@@ -167,6 +204,16 @@ export default class SlackMessageAdapter {
     return this.registerCallback(actionConstraints, callback);
   }
 
+  /**
+   * Add a handler for an options request
+   *
+   * @param {*} matchingConstraints - the callback ID (as a string or RegExp) or
+   * an object describing the constrants to select options requests for the handler.
+   * @param {string|RegExp} matchingConstraints.callbackId
+   * @param {string} matchingConstraints.type
+   * @param {boolean} matchingConstraints.unfurl
+   * @param {OptionsHandler} callback
+   */
   options(matchingConstraints, callback) {
     const optionsConstraints = formatMatchingConstraints(matchingConstraints);
 
@@ -179,20 +226,17 @@ export default class SlackMessageAdapter {
     return this.registerCallback(optionsConstraints, callback);
   }
 
-  /* @private */
+  /* Interface for HTTP servers (like express middleware) */
 
-  registerCallback(constraints, callback) {
-    // Validation
-    if (!isFunction(callback)) {
-      debug('did not register callback because its not a function');
-      throw new TypeError('callback must be a function');
-    }
-
-    this.callbacks.push([constraints, callback]);
-
-    return this;
-  }
-
+  /**
+   * Dispatches the contents of an HTTP request to the registered handlers.
+   *
+   * @param {object} payload
+   * @returns {Promise<{ status: number, content: object|string|undefined }>|undefined} - A promise
+   * of the response information (an object with status and content that is a JSON serializable
+   * object or a string or undefined) for the request. An undefined return value indicates that the
+   * request was not matched.
+   */
   dispatch(payload) {
     // The following result value represents:
     // * "no replacement" for message actions
@@ -202,7 +246,7 @@ export default class SlackMessageAdapter {
 
     const callback = this.matchCallback(payload);
     if (!callback) {
-      // return undefined;
+      // return;
       return result;
     }
     const [, callbackFn] = callback;
@@ -257,6 +301,21 @@ export default class SlackMessageAdapter {
     return result;
   }
 
+  /* @private */
+
+  registerCallback(constraints, callback) {
+    // Validation
+    if (!isFunction(callback)) {
+      debug('did not register callback because its not a function');
+      throw new TypeError('callback must be a function');
+    }
+
+    this.callbacks.push([constraints, callback]);
+
+    return this;
+  }
+
+
   matchCallback(payload) {
     const action = payload.actions && payload.actions[0];
     return this.callbacks.find(([constraints]) => {
@@ -290,3 +349,24 @@ export default class SlackMessageAdapter {
     });
   }
 }
+
+/**
+ * @name ExpressMiddlewareFunc
+ * @function
+ * @param {http.IncomingMessage} req
+ * @param {http.ServerResponse} res
+ * @param {function} next
+ */
+
+/**
+ * @name ActionHandler
+ * @function
+ * @param {object} payload
+ * @param {function} respond
+ */
+
+/**
+ * @name OptionsHandler
+ * @function
+ * @param {object} payload
+ */
