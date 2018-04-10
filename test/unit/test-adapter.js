@@ -423,7 +423,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         return Promise.all([
-          assertResponseStatusAndMessage(dispatchResponse, 200, ''),
+          assertResponseStatusAndMessage(dispatchResponse, 200),
           expectedAsyncRequest
         ]);
       });
@@ -437,7 +437,7 @@ describe('SlackMessageAdapter', function () {
           return delayed(timeout * 1.1, undefined, 'test error');
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
-        return assertResponseStatusAndMessage(dispatchResponse, 200, '');
+        return assertResponseStatusAndMessage(dispatchResponse, 200);
       });
       it('should handle the callback returning a promise that fails before the timeout with a ' +
          'sychronous response', function () {
@@ -470,7 +470,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         return Promise.all([
-          assertResponseStatusAndMessage(dispatchResponse, 200, ''),
+          assertResponseStatusAndMessage(dispatchResponse, 200),
           expectedAsyncRequest
         ]);
       });
@@ -497,7 +497,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         return Promise.all([
-          assertResponseStatusAndMessage(dispatchResponse, 200, ''),
+          assertResponseStatusAndMessage(dispatchResponse, 200),
           expectedAsyncRequest
         ]);
       });
@@ -527,7 +527,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         return Promise.all([
-          assertResponseStatusAndMessage(dispatchResponse, 200, ''),
+          assertResponseStatusAndMessage(dispatchResponse, 200),
           expectedAsyncRequest
         ]);
       });
@@ -641,7 +641,7 @@ describe('SlackMessageAdapter', function () {
           assert.isFunction(respond);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
-        return assertResponseStatusAndMessage(dispatchResponse, 200, '');
+        return assertResponseStatusAndMessage(dispatchResponse, 200);
       });
 
       it('should handle the callback using respond to send a follow up message', function () {
@@ -663,7 +663,7 @@ describe('SlackMessageAdapter', function () {
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
         return Promise.all([
-          assertResponseStatusAndMessage(dispatchResponse, 200, ''),
+          assertResponseStatusAndMessage(dispatchResponse, 200),
           expectedAsyncRequest
         ]);
       });
@@ -739,7 +739,7 @@ describe('SlackMessageAdapter', function () {
           assert.isUndefined(secondArg);
         });
         dispatchResponse = this.adapter.dispatch(requestPayload);
-        return assertResponseStatusAndMessage(dispatchResponse, 200, '');
+        return assertResponseStatusAndMessage(dispatchResponse, 200);
       });
     });
 

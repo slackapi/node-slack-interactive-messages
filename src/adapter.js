@@ -238,16 +238,9 @@ export default class SlackMessageAdapter {
    * request was not matched.
    */
   dispatch(payload) {
-    // The following result value represents:
-    // * "no replacement" for message actions
-    // * "submission is valid" for dialog submissions
-    // * "no suggestions" for menu options TODO: check that this is true
-    let result = { status: 200, content: '' };
-
     const callback = this.matchCallback(payload);
     if (!callback) {
-      // return;
-      return result;
+      return undefined;
     }
     const [, callbackFn] = callback;
 
@@ -268,37 +261,44 @@ export default class SlackMessageAdapter {
       callbackResult = callbackFn.call(this, payload, respond);
     } catch (error) {
       debug('callback error: %o', error);
-      return { status: 500 };
+      return Promise.resolve({ status: 500 });
     }
 
     if (callbackResult) {
-      const contentConsideringTimeout = promiseTimeout(this.syncResponseTimeout, callbackResult)
+      return promiseTimeout(this.syncResponseTimeout, callbackResult)
+        .then(content => ({ status: 200, content }))
         .catch((error) => {
           if (error.code === utilErrorCodes.PROMISE_TIMEOUT) {
-            // don't save late promises for dialog submission, the response_url doesn't do the
-            // same thing as the response. developer should be warned that the promise is taking
-            // too much time
+            // warn and continue for promises that cannot be saved with a later async response.
+            // this includes dialog submissions because the response_url doesn't have the same
+            // semantics as the response, any request that doesn't contain a response_url, and
+            // if this has been explicitly disabled in the configuration.
             if (!this.lateResponseFallbackEnabled || !respond || payload.type === 'dialog_submission') {
               debug('WARNING: The response Promise did not resolve under the timeout.');
-              return callbackResult;
+              return callbackResult
+                .then(content => ({ status: 200, content }))
+                .catch(() => ({ status: 500 }));
             }
 
-            // save a late promise by sending an empty body in the response, and then using the
+            // save a late promise by sending an empty body in the response, and then use the
             // response_url to send the eventually resolved value
             callbackResult.then(respond).catch((callbackError) => {
-              // when the promise is late and fails, won't send it to the response_url, log it
+              // when the promise is late and fails, we cannot do anything but log it
               debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
               throw callbackError;
             });
-            return '';
+            return { status: 200 };
           }
-          // NOTE: this should either not happen or be configurable
-          return 'An error occurred. Please report this to the app developer.';
+
+          return { status: 500 };
         });
-      result = { status: 200, content: contentConsideringTimeout };
     }
 
-    return result;
+    // The following result value represents:
+    // * "no replacement" for message actions
+    // * "submission is valid" for dialog submissions
+    // * "no suggestions" for menu options TODO: check that this is true
+    return Promise.resolve({ status: 200 });
   }
 
   /* @private */
