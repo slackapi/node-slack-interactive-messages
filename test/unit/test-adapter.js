@@ -890,6 +890,11 @@ describe('SlackMessageAdapter', function () {
           assert(this.callback.called);
         });
 
+        it('should not throw when type is not found in payload', function () {
+          this.adapter.action({}, this.callback);
+          this.adapter.dispatch({ actions: [{}] });
+        });
+
         // TODO: successful match on type (utilize the unused payloads above)
       });
 
@@ -920,6 +925,13 @@ describe('SlackMessageAdapter', function () {
           var response;
           this.adapter.options({ within: 'dialog' }, this.callback);
           response = this.adapter.dispatch(this.optionsFromInteractiveMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+
+          unregisterAllHandlers(this.adapter);
+
+          this.adapter.options({ within: 'interactive_message' }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromDialogPayload);
           assert(this.callback.notCalled);
           assert.isUndefined(response);
         });
