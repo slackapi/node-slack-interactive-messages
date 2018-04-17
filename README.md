@@ -4,18 +4,18 @@
 [![codecov](https://codecov.io/gh/slackapi/node-slack-interactive-messages/branch/master/graph/badge.svg)](https://codecov.io/gh/slackapi/node-slack-interactive-messages)
 
 Build your Slack Apps with rich and engaging user interactions using buttons, menus, and dialogs.
-The packages makes it easy to start with sensible and secure defaults.
+The package will help you start with sensible and secure defaults.
 
 The adapter gives you a meaningful API to handle actions from all of Slack's interactive
 message components ([buttons](https://api.slack.com/docs/message-buttons),
-[menus](https://api.slack.com/docs/message-menus), and [dialogs](https://api.slack.com/dialogs)). It
-can be used to start its own HTTP server, or can be plugged into an existing server as an
+[menus](https://api.slack.com/docs/message-menus), and [dialogs](https://api.slack.com/dialogs)).
+Use it as an independent HTTP server or plug it into an existing server as
 [Express](http://expressjs.com/) middleware.
 
 This package does **not** help you compose messages with buttons, menus and dialogs to trigger the
 actions. We recommend using the [Message Builder](https://api.slack.com/docs/messages/builder) to
-design the messages. You can send these messages to Slack using the Web API, Incoming Webhooks, and
-other parts of the platform.
+design interactive messages. You can send these messages to Slack using the Web API, Incoming
+Webhooks, and other parts of the platform.
 
 *  [Installation](#installation)
 *  [Configuration](#configuration)
