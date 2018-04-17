@@ -131,7 +131,7 @@ http.createServer(app).listen(port, () => {
 ```
 
 **Pro-Tip**: You can combine this package and the
-[Events API adapter](https://github.com/slackapi/node-slack-events-api) by attaching each to the
+[`@slack/events-api`](https://github.com/slackapi/node-slack-events-api) by attaching each to the
 same Express application.
 
 ### Creating handlers
