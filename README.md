@@ -44,7 +44,7 @@ app will use dynamic message menus, you also need to input a **Options URL**.
 ![Configuring a request URL](support/interactive-messages.gif)
 
 <details>
-<summary>**What's a request URL? How can I get one for development?**</summary>
+<summary><strong>What's a request URL? How can I get one for development?</strong></summary>
 
 Slack will send requests to your app server each time a button is clicked, a menu item is selected,
 a dialog is submitted, and more. In order to reach your server, you have to tell Slack where your
