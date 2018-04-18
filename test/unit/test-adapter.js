@@ -952,8 +952,13 @@ describe('SlackMessageAdapter', function () {
         });
       });
 
-      describe('when an options and action handler are registered with the same constraints', function () {
-        it('should only trigger the handler that matches the payload', function () {
+      describe('action and options request handlers', function () {
+        it('should not match a options handler for an action payload', function () {
+          this.adapter.options(this.buttonPayload.callback_id, this.callback);
+          this.adapter.dispatch(this.buttonPayload);
+          assert(this.callback.notCalled);
+        });
+        it('should only match the right handler for payload when both have the same callback_id', function () {
           // the following payloads have the same callback_id
           var actionPayload = this.buttonPayload;
           var optionsPayload = this.optionsFromDialogPayload;
@@ -969,7 +974,7 @@ describe('SlackMessageAdapter', function () {
 
           this.adapter.dispatch(optionsPayload);
 
-          assert(optionsCallback.called);
+          assert(optionsCallback.calledOnce);
           assert(actionCallback.calledOnce);
         });
       });
