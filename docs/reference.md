@@ -23,8 +23,9 @@
                 * [.action(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+action) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
                 * [.options(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
             * _inner_
-                * [~ActionHandler(payload, respond)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler)
-                * [~OptionsHandler(payload)](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler)
+                * [~ActionHandler(payload, respond)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler) ⇒ <code>Object</code>
+                    * [~Respond(message)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler..Respond) ⇒ <code>Promise</code>
+                * [~OptionsHandler(payload)](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) ⇒ <code>Object</code>
 
 
 * * *
@@ -53,8 +54,9 @@ An adapter for Slack's interactive message components such as buttons, menus, an
         * [.action(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+action) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
         * [.options(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
     * _inner_
-        * [~ActionHandler(payload, respond)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler)
-        * [~OptionsHandler(payload)](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler)
+        * [~ActionHandler(payload, respond)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler) ⇒ <code>Object</code>
+            * [~Respond(message)](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler..Respond) ⇒ <code>Promise</code>
+        * [~OptionsHandler(payload)](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) ⇒ <code>Object</code>
 
 
 * * *
@@ -83,7 +85,8 @@ message adapter instance. Use this method if your application will handle starti
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
 **Returns**: <code>Promise.&lt;NodeHttpServer&gt;</code> - - A promise that resolves to an instance of http.Server and
-will dispatch interactive message actions and options requests to this message adapter instance  
+will dispatch interactive message actions and options requests to this message adapter
+instance. https://nodejs.org/dist/latest/docs/api/http.html#http_class_http_server  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -125,7 +128,7 @@ Create a middleware function that can be used to integrate with the `express` we
 in order for incoming requests to be dispatched to this message adapter instance.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
-**Returns**: <code>ExpressMiddlewareFunc</code> - - A middleware function  
+**Returns**: <code>ExpressMiddlewareFunc</code> - - A middleware function http://expressjs.com/en/guide/using-middleware.html  
 
 * * *
 
@@ -135,14 +138,15 @@ in order for incoming requests to be dispatched to this message adapter instance
 Add a handler for an interactive message action.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+**Returns**: [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter) - - this instance (for chaining)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| matchingConstraints | <code>Object</code> \| <code>string</code> \| <code>RegExp</code> | the callback ID (as a string or RegExp) or an object describing the constrants to select actions for the handler. |
-| matchingConstraints.callbackId | <code>string</code> \| <code>RegExp</code> |  |
-| matchingConstraints.type | <code>string</code> |  |
-| matchingConstraints.unfurl | <code>boolean</code> |  |
-| callback | [<code>ActionHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler) |  |
+| matchingConstraints | <code>Object</code> \| <code>string</code> \| <code>RegExp</code> | the callback ID (as a string or RegExp) or an object describing the constraints to match actions for the handler. |
+| [matchingConstraints.callbackId] | <code>string</code> \| <code>RegExp</code> | a string or RegExp to match against the `callback_id` |
+| [matchingConstraints.type] | <code>string</code> | `select`, `button`, or `dialog_submission` |
+| [matchingConstraints.unfurl] | <code>boolean</code> | when `true` only match actions from an unfurl |
+| callback | [<code>ActionHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler) | the function to run when an action is matched |
 
 
 * * *
@@ -153,39 +157,80 @@ Add a handler for an interactive message action.
 Add a handler for an options request
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+**Returns**: [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter) - - this instance (for chaining)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| matchingConstraints | <code>\*</code> | the callback ID (as a string or RegExp) or an object describing the constrants to select options requests for the handler. |
-| matchingConstraints.callbackId | <code>string</code> \| <code>RegExp</code> |  |
-| matchingConstraints.type | <code>string</code> |  |
-| matchingConstraints.unfurl | <code>boolean</code> |  |
-| callback | [<code>OptionsHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) |  |
+| matchingConstraints | <code>\*</code> | the callback ID (as a string or RegExp) or an object describing the constraints to select options requests for the handler. |
+| [matchingConstraints.callbackId] | <code>string</code> \| <code>RegExp</code> | a string or RegExxp to match against the `callback_id` |
+| [matchingConstraints.within] | <code>string</code> | `interactive_message` or `dialog` |
+| callback | [<code>OptionsHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) | the function to run when an options request is matched |
 
 
 * * *
 
 <a name="module_adapter--module.exports..SlackMessageAdapter..ActionHandler"></a>
 
-##### SlackMessageAdapter~ActionHandler(payload, respond)
-**Kind**: inner method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+##### SlackMessageAdapter~ActionHandler(payload, respond) ⇒ <code>Object</code>
+A handler function for action requests (button presses, menu selections, and dialog submissions).
 
-| Param | Type |
-| --- | --- |
-| payload | <code>object</code> | 
-| respond | <code>function</code> | 
+**Kind**: inner method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+**Returns**: <code>Object</code> - When the action is a button press or a menu selection, this object is a
+replacement
+[message](https://api.slack.com/docs/interactive-message-field-guide#top-level_message_fields)
+for the message in which the action occurred. It may also be a Promise for a message, and if so
+and the Promise takes longer than the `syncResponseTimeout` to complete, the message is sent over
+the `response_url`. The message may also be a new message in the same conversation by setting
+`replace_original: false`. When the action is a dialog submission, this object is a list of
+[validation errors](https://api.slack.com/dialogs#input_validation). It may also be a Promise for
+a list of validation errors, and if so and the Promise takes longer than the
+`syncReponseTimeout` to complete, Slack will disply an error to the user. If there is no return
+value, then button presses and menu selections do not update the message and dialog submissions
+will validate and dismiss.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| payload | <code>Object</code> | an object describing the [button press](https://api.slack.com/docs/message-buttons#responding_to_message_actions), [menu selection](https://api.slack.com/docs/message-menus#request_url_response), or [dialog submission](https://api.slack.com/dialogs#evaluating_submission_responses). |
+| respond | [<code>Respond</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler..Respond) | When the action is a button press or menu selection, this function is used to update the message where the action occured or create new messages in the same conversation. When the action is a dialog submission, this function is used to create new messages in the conversation where the dialog was triggered. |
+
+
+* * *
+
+<a name="module_adapter--module.exports..SlackMessageAdapter..ActionHandler..Respond"></a>
+
+###### ActionHandler~Respond(message) ⇒ <code>Promise</code>
+A function used to send message updates after an action is handled. This function can be used
+up to 5 times in 30 minutes after the action is handled.
+
+**Kind**: inner method of [<code>ActionHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler)  
+**Returns**: <code>Promise</code> - there's no contract or interface for the resolution value, but this Promise
+will resolve when the HTTP response from the `response_url` request is complete.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| message | <code>Object</code> | a [message](https://api.slack.com/docs/interactive-message-field-guide#top-level_message_fields). Dialog submissions do not allow `resplace_original: false` on this message. |
 
 
 * * *
 
 <a name="module_adapter--module.exports..SlackMessageAdapter..OptionsHandler"></a>
 
-##### SlackMessageAdapter~OptionsHandler(payload)
-**Kind**: inner method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+##### SlackMessageAdapter~OptionsHandler(payload) ⇒ <code>Object</code>
+A handler function for menu options requests.
 
-| Param | Type |
-| --- | --- |
-| payload | <code>object</code> | 
+**Kind**: inner method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+**Returns**: <code>Object</code> - an
+[options list](https://api.slack.com/docs/interactive-message-field-guide#option_fields) or
+[option groups list](https://api.slack.com/docs/interactive-message-field-guide#option_groups).
+When the menu is within an interactive message, (`within: 'interactive_message'`) the option
+keys are `text` and `value`. When the menu is within a dialog (`within: 'dialog'`) the option
+keys are `label` and `value`. This function may also return a Promise either of these values.
+If a Promise is returned and it does not complete within 3 seconds, Slack will display an error
+to the user. If there is no return value, then the user is shown an empty list of options.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| payload | <code>Object</code> | an object describing [the state of the menu](https://api.slack.com/docs/message-menus#options_load_url) |
 
 
 * * *
