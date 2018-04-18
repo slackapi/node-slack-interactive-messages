@@ -1,3 +1,7 @@
+/**
+ * @module adapter
+ */
+
 import http from 'http';
 import axios from 'axios';
 import isString from 'lodash.isstring';
@@ -15,6 +19,7 @@ const debug = debugFactory('@slack/interactive-messages:adapter');
  * @param {string|RegExp|Object} matchingConstraints - the various forms of matching constraints
  * accepted
  * @returns {Object} - an object where each matching constraint is a property
+ * @private
  */
 function formatMatchingConstraints(matchingConstraints) {
   let ret = {};
@@ -32,8 +37,9 @@ function formatMatchingConstraints(matchingConstraints) {
 /**
  * Validates general properties of a matching constraints object
  * @param {Object} matchingConstraints - object describing the constraints on a callback
- * @return {Error|false} - a false value represents successful validation, otherwise an error to
+ * @returns {Error|false} - a false value represents successful validation, otherwise an error to
  * describe why validation failed.
+ * @private
  */
 function validateConstraints(matchingConstraints) {
   if (matchingConstraints.callbackId &&
@@ -47,8 +53,9 @@ function validateConstraints(matchingConstraints) {
 /**
  * Validates properties of a matching constraints object specific to registering an action
  * @param {Object} matchingConstraints - object describing the constraints on a callback
- * @return {Error|false} - a false value represents successful validation, otherwise an error to
+ * @returns {Error|false} - a false value represents successful validation, otherwise an error to
  * describe why validation failed.
+ * @private
  */
 function validateActionConstraints(actionConstraints) {
   if (actionConstraints.type &&
@@ -65,8 +72,9 @@ function validateActionConstraints(actionConstraints) {
 /**
  * Validates properties of a matching constraints object specific to registering an options request
  * @param {Object} matchingConstraints - object describing the constraints on a callback
- * @return {Error|false} - a false value represents successful validation, otherwise an error to
+ * @returns {Error|false} - a false value represents successful validation, otherwise an error to
  * describe why validation failed.
+ * @private
  */
 function validateOptionsConstraints(optionsConstraints) {
   if (optionsConstraints.within &&
@@ -80,7 +88,11 @@ function validateOptionsConstraints(optionsConstraints) {
   return false;
 }
 
-export default class SlackMessageAdapter {
+/**
+ * An adapter for Slack's interactive message components such as buttons, menus, and dialogs.
+ * @typicalname slackMessages
+ */
+class SlackMessageAdapter {
   /**
    * Create a message adapter.
    *
@@ -126,8 +138,8 @@ export default class SlackMessageAdapter {
    *
    * @param {string} [path=/slack/actions] - The path portion of the URL where the server will
    * listen for requests from Slack's interactive messages.
-   * @returns - A promise that resolves to an instance of http.Server and will dispatch interactive
-   * message actions and options requests to this message adapter instance
+   * @returns {Promise<NodeHttpServer>} - A promise that resolves to an instance of http.Server and
+   * will dispatch interactive message actions and options requests to this message adapter instance
    */
   createServer(path = '/slack/actions') {
     // TODO: more options (like https)
@@ -151,7 +163,7 @@ export default class SlackMessageAdapter {
    * to this message adapter interface.
    *
    * @param {number} port
-   * @requires {Promise<void>} - A promise that resolves once the server is ready
+   * @returns {Promise<void>} - A promise that resolves once the server is ready
    */
   start(port) {
     return this.createServer()
@@ -207,7 +219,8 @@ export default class SlackMessageAdapter {
    * @param {string|RegExp} matchingConstraints.callbackId
    * @param {string} matchingConstraints.type
    * @param {boolean} matchingConstraints.unfurl
-   * @param {ActionHandler} callback
+   * @param {module:adapter~SlackMessageAdapter~ActionHandler} callback
+   * @returns {module:adapter~SlackMessageAdapter}
    */
   action(matchingConstraints, callback) {
     const actionConstraints = formatMatchingConstraints(matchingConstraints);
@@ -231,7 +244,8 @@ export default class SlackMessageAdapter {
    * @param {string|RegExp} matchingConstraints.callbackId
    * @param {string} matchingConstraints.type
    * @param {boolean} matchingConstraints.unfurl
-   * @param {OptionsHandler} callback
+   * @param {module:adapter~SlackMessageAdapter~OptionsHandler} callback
+   * @returns {module:adapter~SlackMessageAdapter}
    */
   options(matchingConstraints, callback) {
     const optionsConstraints = formatMatchingConstraints(matchingConstraints);
@@ -257,6 +271,7 @@ export default class SlackMessageAdapter {
    * of the response information (an object with status and content that is a JSON serializable
    * object or a string or undefined) for the request. An undefined return value indicates that the
    * request was not matched.
+   * @private
    */
   dispatch(payload) {
     const callback = this.matchCallback(payload);
@@ -324,8 +339,9 @@ export default class SlackMessageAdapter {
     return Promise.resolve({ status: 200 });
   }
 
-  /* @private */
-
+  /**
+   * @private
+   */
   registerCallback(constraints, callback) {
     // Validation
     if (!isFunction(callback)) {
@@ -338,6 +354,9 @@ export default class SlackMessageAdapter {
     return this;
   }
 
+  /**
+   * @private
+   */
   matchCallback(payload) {
     return this.callbacks.find(([constraints]) => {
       // if the callback ID constraint is specified, only continue if it matches
@@ -411,22 +430,29 @@ export default class SlackMessageAdapter {
 }
 
 /**
- * @name ExpressMiddlewareFunc
- * @function
- * @param {http.IncomingMessage} req
- * @param {http.ServerResponse} res
- * @param {function} next
+ * @alias module:adapter
+ */
+export default SlackMessageAdapter;
+
+/**
+ * @external ExpressMiddlewareFunc
+ * @see http://expressjs.com/en/guide/using-middleware.html
  */
 
 /**
- * @name ActionHandler
+ * @external NodeHttpServer
+ * @see https://nodejs.org/dist/latest/docs/api/http.html#http_class_http_server
+ */
+
+/**
+ * @name module:adapter~SlackMessageAdapter~ActionHandler
  * @function
  * @param {object} payload
  * @param {function} respond
  */
 
 /**
- * @name OptionsHandler
+ * @name module:adapter~SlackMessageAdapter~OptionsHandler
  * @function
  * @param {object} payload
  */
