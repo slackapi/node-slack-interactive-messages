@@ -130,13 +130,13 @@ http.createServer(app).listen(port, () => {
 });
 ```
 
-**Pro-Tip**: You can combine this package and the
+**Pro-Tip**: You can combine this package and
 [`@slack/events-api`](https://github.com/slackapi/node-slack-events-api) by attaching each to the
 same Express application.
 
 ### Creating handlers
 
-When a user interacts with one of the interaction components, this adapter will run a handler
+When a user interacts with one of the interactive components, this adapter will run a handler
 function in response. Your app should create a handler for each type of interaction it expects.
 There are two categories of interactions: **actions** and **options requests**. With either kind,
 your app can describe which handler to run using one or many **constraints**.
