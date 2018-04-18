@@ -172,7 +172,7 @@ describe('SlackMessageAdapter', function () {
     });
     assert.isOk(callbackEntry);
     if (constraints) {
-      assert.deepEqual(callbackEntry[0], constraints);
+      assert.include(callbackEntry[0], constraints);
     }
   }
 
@@ -733,7 +733,7 @@ describe('SlackMessageAdapter', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
         var optionsResponse = this.optionsResponse;
-        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+        this.adapter.options(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
           assert.isUndefined(secondArg);
           return optionsResponse;
@@ -749,7 +749,7 @@ describe('SlackMessageAdapter', function () {
         var optionsResponse = this.optionsResponse;
         var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout);
-        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+        this.adapter.options(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
           assert.isUndefined(secondArg);
           return delayed(timeout * 0.1, optionsResponse);
@@ -765,7 +765,7 @@ describe('SlackMessageAdapter', function () {
         var optionsResponse = this.optionsResponse;
         var timeout = this.adapter.syncResponseTimeout;
         this.timeout(timeout * 1.5);
-        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+        this.adapter.options(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
           assert.isUndefined(secondArg);
           return delayed(timeout * 1.1, optionsResponse);
@@ -777,7 +777,7 @@ describe('SlackMessageAdapter', function () {
       it('should handle the callback returning nothing with a synchronous response', function () {
         var dispatchResponse;
         var requestPayload = this.requestPayload;
-        this.adapter.action(requestPayload.callback_id, function (payload, secondArg) {
+        this.adapter.options(requestPayload.callback_id, function (payload, secondArg) {
           assert.deepEqual(payload, requestPayload);
           assert.isUndefined(secondArg);
         });
@@ -951,6 +951,28 @@ describe('SlackMessageAdapter', function () {
           assert(this.callback.called);
         });
       });
+
+      describe('when an options and action handler are registered with the same constraints', function () {
+        it('should only trigger the handler that matches the payload', function () {
+          // the following payloads have the same callback_id
+          var actionPayload = this.buttonPayload;
+          var optionsPayload = this.optionsFromDialogPayload;
+          var actionCallback = sinon.spy();
+          var optionsCallback = sinon.spy();
+          this.adapter.action(actionPayload.callback_id, actionCallback);
+          this.adapter.options(actionPayload.callback_id, optionsCallback);
+
+          this.adapter.dispatch(actionPayload);
+
+          assert(actionCallback.called);
+          assert(optionsCallback.notCalled);
+
+          this.adapter.dispatch(optionsPayload);
+
+          assert(optionsCallback.called);
+          assert(actionCallback.calledOnce);
+        });
+      });
     });
 
     describe('callback error handling', function () {
@@ -959,7 +981,7 @@ describe('SlackMessageAdapter', function () {
         this.adapter.action('a', function () {
           throw new Error('test error');
         });
-        response = this.adapter.dispatch({ callback_id: 'a' });
+        response = this.adapter.dispatch({ callback_id: 'a', actions: [{}] });
         return assertResponseStatusAndMessage(response, 500);
       });
 
@@ -971,7 +993,7 @@ describe('SlackMessageAdapter', function () {
           }, TypeError);
           done();
         });
-        this.adapter.dispatch({ callback_id: 'a', response_url: 'http://example.com' });
+        this.adapter.dispatch({ callback_id: 'a', actions: [{}], response_url: 'http://example.com' });
       });
     });
   });
