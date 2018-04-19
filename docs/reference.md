@@ -168,8 +168,8 @@ Add a handler for an options request
 Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
 following table describes it fully
 
-| |**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+&nbsp;|**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
+:-----:|:-----:|:-----:|:-----:|:-----:
 **Options Request**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
@@ -177,7 +177,7 @@ following table describes it fully
 
 | Param | Type | Description |
 | --- | --- | --- |
-| matchingConstraints | <code>\*</code> | the callback ID (as a string or RegExp) or an object describing the constraints to select options requests for the handler. |
+| matchingConstraints | <code>object</code> | the callback ID (as a string or RegExp) or an object describing the constraints to select options requests for the handler. |
 | [matchingConstraints.callbackId] | <code>string</code> \| <code>RegExp</code> | a string or RegExxp to match against the `callback_id` |
 | [matchingConstraints.within] | <code>string</code> | when `interactive_message` only for menus in an interactive message, or when `dialog` only for menus in a dialog |
 | callback | [<code>OptionsHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) | the function to run when an options request is matched |

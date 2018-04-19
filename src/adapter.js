@@ -258,11 +258,11 @@ class SlackMessageAdapter {
    * Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
    * following table describes it fully
    *
-   * | |**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
-   * :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+   * &nbsp;|**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
+   * :-----:|:-----:|:-----:|:-----:|:-----:
    * **Options Request**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
    *
-   * @param {*} matchingConstraints - the callback ID (as a string or RegExp) or
+   * @param {object} matchingConstraints - the callback ID (as a string or RegExp) or
    * an object describing the constraints to select options requests for the handler.
    * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExxp to match against
    * the `callback_id`
