@@ -79,7 +79,7 @@ Create a message adapter.
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+createServer"></a>
 
-##### slackMessages.createServer([path]) ⇒ <code>Promise.&lt;NodeHttpServer&gt;</code>
+##### slackInteractions.createServer([path]) ⇒ <code>Promise.&lt;NodeHttpServer&gt;</code>
 Create a server that dispatches Slack's interactive message actions and menu requests to this
 message adapter instance. Use this method if your application will handle starting the server.
 
@@ -97,7 +97,7 @@ instance. https://nodejs.org/dist/latest/docs/api/http.html#http_class_http_serv
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+start"></a>
 
-##### slackMessages.start(port) ⇒ <code>Promise.&lt;void&gt;</code>
+##### slackInteractions.start(port) ⇒ <code>Promise.&lt;void&gt;</code>
 Start a built-in server that dispatches Slack's interactive message actions and menu requests
 to this message adapter interface.
 
@@ -113,7 +113,7 @@ to this message adapter interface.
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+stop"></a>
 
-##### slackMessages.stop() ⇒ <code>Promise.&lt;void&gt;</code>
+##### slackInteractions.stop() ⇒ <code>Promise.&lt;void&gt;</code>
 Stop the previously started built-in server.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
@@ -123,7 +123,7 @@ Stop the previously started built-in server.
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+expressMiddleware"></a>
 
-##### slackMessages.expressMiddleware() ⇒ <code>ExpressMiddlewareFunc</code>
+##### slackInteractions.expressMiddleware() ⇒ <code>ExpressMiddlewareFunc</code>
 Create a middleware function that can be used to integrate with the `express` web framework
 in order for incoming requests to be dispatched to this message adapter instance.
 
@@ -134,8 +134,17 @@ in order for incoming requests to be dispatched to this message adapter instance
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+action"></a>
 
-##### slackMessages.action(matchingConstraints, callback) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+##### slackInteractions.action(matchingConstraints, callback) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 Add a handler for an interactive message action.
+
+Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
+following table describes it fully.
+
+**Action**|**Return `object`**|**Return `Promise<object>`**|**Return `undefined`**|**Call `respond(message)`**|**Notes**
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+**Button Press**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
+**Menu Selection**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
+**Dialog Submission**| Error list in response | Error list in response | Empty response | Message in request to `response_url` | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. Warning logged if a promise isn't completed before `syncResponseTimeout`.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
 **Returns**: [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter) - - this instance (for chaining)  
@@ -144,7 +153,7 @@ Add a handler for an interactive message action.
 | --- | --- | --- |
 | matchingConstraints | <code>Object</code> \| <code>string</code> \| <code>RegExp</code> | the callback ID (as a string or RegExp) or an object describing the constraints to match actions for the handler. |
 | [matchingConstraints.callbackId] | <code>string</code> \| <code>RegExp</code> | a string or RegExp to match against the `callback_id` |
-| [matchingConstraints.type] | <code>string</code> | `select`, `button`, or `dialog_submission` |
+| [matchingConstraints.type] | <code>string</code> | when `select` only for menu selections, when `button` only for buttton presses, or when `dialog_submission` only for dialog submissions |
 | [matchingConstraints.unfurl] | <code>boolean</code> | when `true` only match actions from an unfurl |
 | callback | [<code>ActionHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler) | the function to run when an action is matched |
 
@@ -153,8 +162,15 @@ Add a handler for an interactive message action.
 
 <a name="module_adapter--module.exports..SlackMessageAdapter+options"></a>
 
-##### slackMessages.options(matchingConstraints, callback) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+##### slackInteractions.options(matchingConstraints, callback) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 Add a handler for an options request
+
+Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
+following table describes it fully
+
+| |**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+**Options Requestt**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
 **Returns**: [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter) - - this instance (for chaining)  
@@ -163,7 +179,7 @@ Add a handler for an options request
 | --- | --- | --- |
 | matchingConstraints | <code>\*</code> | the callback ID (as a string or RegExp) or an object describing the constraints to select options requests for the handler. |
 | [matchingConstraints.callbackId] | <code>string</code> \| <code>RegExp</code> | a string or RegExxp to match against the `callback_id` |
-| [matchingConstraints.within] | <code>string</code> | `interactive_message` or `dialog` |
+| [matchingConstraints.within] | <code>string</code> | when `interactive_message` only for menus in an interactive message, or when `dialog` only for menus in a dialog |
 | callback | [<code>OptionsHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..OptionsHandler) | the function to run when an options request is matched |
 
 
@@ -200,11 +216,12 @@ will validate and dismiss.
 
 ###### ActionHandler~Respond(message) ⇒ <code>Promise</code>
 A function used to send message updates after an action is handled. This function can be used
-up to 5 times in 30 minutes after the action is handled.
+up to 5 times in 30 minutes.
 
 **Kind**: inner method of [<code>ActionHandler</code>](#module_adapter--module.exports..SlackMessageAdapter..ActionHandler)  
 **Returns**: <code>Promise</code> - there's no contract or interface for the resolution value, but this Promise
-will resolve when the HTTP response from the `response_url` request is complete.  
+will resolve when the HTTP response from the `response_url` request is complete and reject when
+there is an error.  
 
 | Param | Type | Description |
 | --- | --- | --- |

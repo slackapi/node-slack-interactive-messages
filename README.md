@@ -39,9 +39,9 @@ On the **Basic Information** page, in the section for **App Credentials**, note 
 **Verification Token**. You will need it to initialize the adapter.
 
 Select the **Interactive Components** feature, and enable it. Input a **Request URL**. If your
-app will use dynamic message menus, you also need to input a **Options URL**.
+app will use dynamic message menus, you also need to input a **Options Load URL**.
 
-![Configuring a request URL](support/interactive-messages.gif)
+![Configuring a request URL](support/interactive-components.gif)
 
 <details>
 <summary><strong>What's a request URL? How can I get one for development?</strong></summary>
@@ -64,11 +64,11 @@ forwarding requests to a specific port (for example, 3000).
 
 The output should show you a newly generated URL that you can use (ngrok will actually show you two
 and we recommend the one that begins with "https"). Let's call this the base URL (for example,
-`https://d9f6dad3.ngrok.io`)
+`https://e0e88971.ngrok.io`)
 
 To create the request URL, we add the path where our app listens for message actions onto the end of
 the base URL. If you are using the built-in HTTP server it is set to `/slack/actions`. In this
-example the request URL would be `https://d9f6dad3.ngrok.io/slack/actions`. If you are using the
+example the request URL would be `https://e0e88971.ngrok.io/slack/actions`. If you are using the
 Express middlware, you can set whichever path you like, just remember to make the path you mount the
 middleware into the application the same as the one you configure in Slack.
 </details>
@@ -87,14 +87,14 @@ the adapter to an existing Express application as a middleware.
 const { createMessageAdapter } = require('@slack/interactive-messages');
 
 // Create the adapter using the app's verification token, read from environment variable
-const slackMessages = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
+const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 
 // Select a port for the server to listen on.
 // NOTE: When using ngrok or localtunnel locally, choose the same port it was started with.
 const port = process.env.PORT || 3000;
 
 // Start the built-in HTTP server
-slackMessages.start(port).then(() => {
+slackInteractions.start(port).then(() => {
   console.log(`server listening on port ${port}`);
 });
 ```
@@ -109,7 +109,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 // Create the adapter using the app's verification token, read from environment variable
-const slackMessages = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
+const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 
 // Initialize an Express application
 // NOTE: You must use a body parser for the urlencoded format before attaching the adapter
@@ -118,7 +118,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // Attach the adapter to the Express application as a middleware
 // NOTE: The path must match the Request URL and/or Options URL configured in Slack
-app.use('/slack/actions', slackMessages.expressMiddleware());
+app.use('/slack/actions', slackInteractions.expressMiddleware());
 
 // Select a port for the server to listen on.
 // NOTE: When using ngrok or localtunnel locally, choose the same port it was started with.
@@ -148,10 +148,10 @@ constraint for the handler.
 
 ```javascript
 // Run handlerFunction for any interactions from messages with a callback_id of welcome_button
-slackMessages.action('welcome_button', handlerFunction);
+slackInteractions.action('welcome_button', handlerFunction);
 
 // Run handlerFunction for any interactions from messages with a callback_id that match the RegExp
-slackMessages.action(/welcome_(\w+)/, handlerFunction);
+slackInteractions.action(/welcome_(\w+)/, handlerFunction);
 
 // This function is discussed in "Responding to actions" below
 function handlerFunction() {
@@ -159,23 +159,18 @@ function handlerFunction() {
 ```
 
 Use an object to describe other constraints, even combine multiple constraints to create more
-specific handlers.
+specific handlers. The full set of constraint options are described in the
+[reference documentation](docs/reference.md#module_adapter--module.exports..SlackMessageAdapter+action).
 
 ```javascript
-// Run handlerFunction for all menu selections
-slackMessages.action({ type: 'select' }, handlerFunction)
-
 // Run handlerFunction for all button presses
-slackMessages.action({ type: 'button' }, handlerFunction)
+slackInteractions.action({ type: 'button' }, handlerFunction)
 
-// Run handlerFunction for all dialog submissions
-slackMessages.action({ type: 'dialog_submission' }, handlerFunction)
+// Run handlerFunction for the dialog submission with callback_id of 'welcome'
+slackInteractions.action({ callbackId: 'welcome', type: 'dialog_submission' }, handlerFunction);
 
-// Run handlerFunction for the menu selection in attachments with callback_id of 'welcome'
-slackMessages.action({ callbackId: 'welcome', type: 'select' }, handlerFunction);
-
-// Run handlerFunction for all button presses inside an unfurl attachment
-slackMessages.action({ unfurl: true, type: 'button' }, handlerFunction);
+// Run handlerFunction for all menu selections inside an unfurl attachment
+slackInteractions.action({ unfurl: true, type: 'select' }, handlerFunction);
 
 // This function is discussed in "Responding to actions" below
 function handlerFunction() {
@@ -205,7 +200,7 @@ continue to update the message using the `respond()` function that is provided t
 **Example button handler:**
 
 ```javascript
-slackMessages.action('welcome_agree_button', (payload, respond) => {
+slackInteractions.action('welcome_agree_button', (payload, respond) => {
   // `payload` is an object that describes the interaction
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} pressed a button`);
 
@@ -264,7 +259,7 @@ success or failure.
 **Example dialog submission handler:**
 
 ```javascript
-slackMessages.action('create_order_dialog', (payload, respond) => {
+slackInteractions.action('create_order_dialog', (payload, respond) => {
   // `payload` is an object that describes the interaction
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} submitted a dialog`);
 
@@ -311,10 +306,10 @@ constraint for the handler.
 
 ```javascript
 // Run handlerFunction for any options requests from messages with a callback_id of project_menu
-slackMessages.options('project_menu', handlerFunction);
+slackInteractions.options('project_menu', handlerFunction);
 
 // Run handlerFunction for any options requests from messages with a callback_id that match the RegExp
-slackMessages.options(/(\w+)_menu/, handlerFunction);
+slackInteractions.options(/(\w+)_menu/, handlerFunction);
 
 // This function is discussed in "Responding to options requests" below
 function handlerFunction() {
@@ -322,17 +317,15 @@ function handlerFunction() {
 ```
 
 Use an object to describe other constraints, even combine multiple constraints to create more
-specific handlers.
+specific handlers. The full set of constraint options are described in the
+[reference documentation](docs/reference.md#module_adapter--module.exports..SlackMessageAdapter+options).
 
 ```javascript
-// Run handlerFunction for all options requests from inside a message
-slackMessages.options({ within: 'interactive_message' }, handlerFunction)
-
 // Run handlerFunction for all options requests from inside a dialog
-slackMessages.options({ within: 'dialog' }, handlerFunction)
+slackInteractions.options({ within: 'dialog' }, handlerFunction)
 
-// Run handlerFunction for all options requests from inside a dialog with callbac_id of 'project_menu'
-slackMessages.options({ callbackId: 'project_menu', within: 'dialog' }, handlerFunction)
+// Run handlerFunction for all options requests from inside a message with callback_id of 'project_menu'
+slackInteractions.options({ callbackId: 'project_menu', within: 'interactive_message' }, handlerFunction)
 
 // This function is discussed in "Responding to options requests" below
 function handlerFunction() {
@@ -359,7 +352,7 @@ Find more details about the structure of `payload` in the docs for
 **Example options request handler:**
 
 ```javascript
-slackMessages.options('project_menu', (payload) => {
+slackInteractions.options('project_menu', (payload) => {
   // `payload` is an object that describes the interaction
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} is typing in a menu`);
 
@@ -386,7 +379,7 @@ The `.action()` and `.options()` methods return the adapter object, which means 
 chaining.
 
 ```javascript
-slackMessages
+slackInteractions
   .action('make_order_1', orderStepOne)
   .action('make_order_2', orderStepTwo)
   .action('make_order_3', orderStepThree)

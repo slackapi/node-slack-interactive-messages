@@ -90,7 +90,7 @@ function validateOptionsConstraints(optionsConstraints) {
 
 /**
  * An adapter for Slack's interactive message components such as buttons, menus, and dialogs.
- * @typicalname slackMessages
+ * @typicalname slackInteractions
  */
 class SlackMessageAdapter {
   /**
@@ -212,20 +212,32 @@ class SlackMessageAdapter {
 
   /* Interface for adding handlers */
 
+  /* eslint-disable max-len */
   /**
    * Add a handler for an interactive message action.
+   *
+   * Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
+   * following table describes it fully.
+   *
+   * **Action**|**Return `object`**|**Return `Promise<object>`**|**Return `undefined`**|**Call `respond(message)`**|**Notes**
+   * :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+   * **Button Press**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
+   * **Menu Selection**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
+   * **Dialog Submission**| Error list in response | Error list in response | Empty response | Message in request to `response_url` | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. Warning logged if a promise isn't completed before `syncResponseTimeout`.
    *
    * @param {Object|string|RegExp} matchingConstraints - the callback ID (as a string or RegExp) or
    * an object describing the constraints to match actions for the handler.
    * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExp to match against
    * the `callback_id`
-   * @param {string} [matchingConstraints.type] - `select`, `button`, or `dialog_submission`
+   * @param {string} [matchingConstraints.type] - when `select` only for menu selections, when
+   * `button` only for buttton presses, or when `dialog_submission` only for dialog submissions
    * @param {boolean} [matchingConstraints.unfurl] - when `true` only match actions from an unfurl
    * @param {module:adapter~SlackMessageAdapter~ActionHandler} callback - the function to run when
    * an action is matched
    * @returns {module:adapter~SlackMessageAdapter} - this instance (for chaining)
    */
   action(matchingConstraints, callback) {
+    /* eslint-enable max-len */
     const actionConstraints = formatMatchingConstraints(matchingConstraints);
     actionConstraints.handlerType = 'action';
 
@@ -239,19 +251,29 @@ class SlackMessageAdapter {
     return this.registerCallback(actionConstraints, callback);
   }
 
+  /* eslint-disable max-len */
   /**
    * Add a handler for an options request
+   *
+   * Usually there's no need to be concerned with _how_ a message is sent to Slack, but the
+   * following table describes it fully
+   *
+   * | |**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
+   * :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+   * **Options Request**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
    *
    * @param {*} matchingConstraints - the callback ID (as a string or RegExp) or
    * an object describing the constraints to select options requests for the handler.
    * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExxp to match against
    * the `callback_id`
-   * @param {string} [matchingConstraints.within] - `interactive_message` or `dialog`
+   * @param {string} [matchingConstraints.within] - when `interactive_message` only for menus in
+   * an interactive message, or when `dialog` only for menus in a dialog
    * @param {module:adapter~SlackMessageAdapter~OptionsHandler} callback - the function to run when
    * an options request is matched
    * @returns {module:adapter~SlackMessageAdapter} - this instance (for chaining)
    */
   options(matchingConstraints, callback) {
+    /* eslint-enable max-len */
     const optionsConstraints = formatMatchingConstraints(matchingConstraints);
     optionsConstraints.handlerType = 'options';
 
@@ -477,7 +499,7 @@ export default SlackMessageAdapter;
 
 /**
  * A function used to send message updates after an action is handled. This function can be used
- * up to 5 times in 30 minutes after the action is handled.
+ * up to 5 times in 30 minutes.
  *
  * @name module:adapter~SlackMessageAdapter~ActionHandler~Respond
  * @function
@@ -485,7 +507,8 @@ export default SlackMessageAdapter;
  * [message](https://api.slack.com/docs/interactive-message-field-guide#top-level_message_fields).
  * Dialog submissions do not allow `resplace_original: false` on this message.
  * @returns {Promise} there's no contract or interface for the resolution value, but this Promise
- * will resolve when the HTTP response from the `response_url` request is complete.
+ * will resolve when the HTTP response from the `response_url` request is complete and reject when
+ * there is an error.
  */
 
 /**
