@@ -170,7 +170,7 @@ following table describes it fully
 
 | |**Return `options`**|**Return `Promise<options>`**|**Return `undefined`**|**Notes**
 :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-**Options Requestt**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
+**Options Request**| Options in response | Options in response | Empty response | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. If the request is from within a dialog, the `text` field is called `label`.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
 **Returns**: [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter) - - this instance (for chaining)  
