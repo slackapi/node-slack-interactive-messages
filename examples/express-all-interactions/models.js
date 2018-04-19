@@ -43,7 +43,7 @@ exports.neighborhoods = {
       },
     })
     .then((response) => {
-      result = response.data[0];
+      const result = response.data[0];
       if (!result.link) {
         result.link = `http://www.google.com/search?q=${encodeURIComponent(result.name)}`;
       }
