@@ -11,6 +11,12 @@ All you need to work with this project is a recent version of Node.js (current L
 
 ## Tasks
 
+### Debugging
+
+This package uses [`debug`](https://github.com/visionmedia/debug) to log interesting data while
+running. This is a good first step in trying to diagnose an issue. To enable the output, set the
+following environment variable: `DEBUG=@slack/interactive-messages:*`.
+
 ### Building
 
 The source of this project is written in ES2016, a modern JavaScript syntax. In order to allow the
