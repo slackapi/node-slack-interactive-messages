@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const { createMessageAdapter } = require('@slack/interactive-messages');
 const { WebClient } = require('@slack/client');
 const { users, neighborhoods } = require('./models');
+const axios = require('axios');
 
 // Read the verification token from the environment variables
 const slackVerificationToken = process.env.SLACK_VERIFICATION_TOKEN;
@@ -13,7 +14,7 @@ if (!slackVerificationToken || !slackAccessToken) {
 }
 
 // Create the adapter using the app's verification token
-const slackMessages = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
+const slackInteractions = createMessageAdapter(process.env.SLACK_VERIFICATION_TOKEN);
 
 // Create a Slack Web API client
 const web = new WebClient(slackAccessToken);
@@ -23,7 +24,7 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Attach the adapter to the Express application as a middleware
-app.use('/slack/actions', slackMessages.expressMiddleware());
+app.use('/slack/actions', slackInteractions.expressMiddleware());
 
 // Attach the slash command handler
 app.post('/slack/commands', slackSlashCommand);
@@ -35,7 +36,7 @@ http.createServer(app).listen(port, () => {
 });
 
 // Slack interactive message handlers
-slackMessages.action('accept_tos', (payload, respond) => {
+slackInteractions.action('accept_tos', (payload, respond) => {
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} pressed a button`);
 
   // Use the data model to persist the action
@@ -67,7 +68,7 @@ slackMessages.action('accept_tos', (payload, respond) => {
   return reply;
 });
 
-slackMessages
+slackInteractions
   .options({ callbackId: 'pick_sf_neighborhood', within: 'interactive_message' }, (payload) => {
     console.log(`The user ${payload.user.name} in team ${payload.team.domain} has requested options`);
 
@@ -112,7 +113,7 @@ slackMessages
     return reply;
   });
 
-slackMessages.action({ type: 'dialog_submission' }, (payload, respond) => {
+slackInteractions.action({ type: 'dialog_submission' }, (payload, respond) => {
   // `payload` is an object that describes the interaction
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} submitted a dialog`);
 
@@ -226,6 +227,10 @@ function slackSlashCommand(req, res, next) {
       web.dialog.open({
         trigger_id: req.body.trigger_id,
         dialog,
+      }).catch((error) => {
+        return axios.post(req.body.response_url, {
+          text: `An error occurred while opening the dialog: ${error.message}`,
+        });
       }).catch(console.error);
     } else {
       res.send('Use this command followed by `button`, `menu`, or `dialog`.');
