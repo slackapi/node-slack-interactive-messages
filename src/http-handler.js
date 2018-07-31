@@ -78,7 +78,7 @@ export function createHTTPHandler(adapter) {
       if (!rawBody) return false;
 
       // Verify the request signature
-      const requestIsVerified = verifyRequestSignature(adapter.verificationToken, req, rawBody);
+      const requestIsVerified = verifyRequestSignature(adapter.signingSecret, req, rawBody);
 
       if (requestIsVerified) {
         // Function used to send response
@@ -113,7 +113,7 @@ export function createHTTPHandler(adapter) {
   /**
    * Method to verify signature of requests
    *
-   * @param {req} Request
+   * @param {signingSecret} Signing secret used to verify request signature
    * @param {res} Response
    * @param {rawBody} Raw request body
    * @returns {boolean} Indicates if request is verified

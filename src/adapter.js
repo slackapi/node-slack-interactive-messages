@@ -97,7 +97,7 @@ class SlackMessageAdapter {
   /**
    * Create a message adapter.
    *
-   * @param {string} verificationToken - Slack app verification token used to authenticate request
+   * @param {string} signingSecret - Slack app signing secret used to authenticate request
    * @param {Object} [options]
    * @param {number} [options.syncResponseTimeout=2500] - number of milliseconds to wait before
    * flushing a syncrhonous response to an incoming request and falling back to an asynchronous
@@ -106,19 +106,19 @@ class SlackMessageAdapter {
    * resolve after the syncResponseTimeout can fallback to a request for the response_url. this only
    * works in cases where the semantic meaning of the response and the response_url are the same.
    */
-  constructor(verificationToken, {
+  constructor(signingSecret, {
     syncResponseTimeout = 2500,
     lateResponseFallbackEnabled = true,
   } = {}) {
-    if (!isString(verificationToken)) {
-      throw new TypeError('SlackMessageAdapter needs a verification token');
+    if (!isString(signingSecret)) {
+      throw new TypeError('SlackMessageAdapter needs a signing secret');
     }
 
     if (syncResponseTimeout > 3000 || syncResponseTimeout < 1) {
       throw new TypeError('syncResponseTimeout must be between 1 and 3000');
     }
 
-    this.verificationToken = verificationToken;
+    this.signingSecret = signingSecret;
     this.syncResponseTimeout = syncResponseTimeout;
     this.lateResponseFallbackEnabled = lateResponseFallbackEnabled;
     this.callbacks = [];
