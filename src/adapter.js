@@ -10,6 +10,7 @@ import isRegExp from 'lodash.isregexp';
 import isFunction from 'lodash.isfunction';
 import debugFactory from 'debug';
 import { createExpressMiddleware } from './express-middleware';
+import { createHTTPHandler } from './http-handler';
 import { packageIdentifier, promiseTimeout, errorCodes as utilErrorCodes } from './util';
 
 const debug = debugFactory('@slack/interactive-messages:adapter');
@@ -144,18 +145,10 @@ class SlackMessageAdapter {
    */
   createServer(path = '/slack/actions') {
     // TODO: more options (like https)
-    return Promise.resolve().then(() => Promise.all([
-      import('express'),
-      import('body-parser'),
-    ]))
-      .then(([express, bodyParser]) => {
-        const app = express();
-        app.use(bodyParser.urlencoded({ extended: false }));
-        app.post(path, this.expressMiddleware());
-
+    return Promise.resolve().then(() => {
         debug('server created - path: %s', path);
 
-        return http.createServer(app);
+        return http.createServer(this.requestListener());
       });
   }
 
@@ -208,6 +201,10 @@ class SlackMessageAdapter {
    */
   expressMiddleware() {
     return createExpressMiddleware(this);
+  }
+
+  requestListener() {
+    return createHTTPHandler(this);
   }
 
   /* Interface for adding handlers */
@@ -302,6 +299,7 @@ class SlackMessageAdapter {
    */
   dispatch(payload) {
     const callback = this.matchCallback(payload);
+
     if (!callback) {
       debug('dispatch could not find a handler');
       return undefined;
@@ -317,6 +315,7 @@ class SlackMessageAdapter {
           throw new TypeError('Cannot use a Promise as the parameter for respond()');
         }
         debug('sending async response');
+
         return this.axios.post(payload.response_url, message);
       };
     }
@@ -352,6 +351,7 @@ class SlackMessageAdapter {
               debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
               throw callbackError;
             });
+
             return { status: 200 };
           }
 

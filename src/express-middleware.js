@@ -30,7 +30,7 @@ export function createExpressMiddleware(adapter) {
   }
 
   return function slackMessageAdapterMiddleware(req, res, next) {
-    debug('request received - method: %s, path: %s', req.method, req.path);
+    debug('request received - method: %s, path: %s', req.method, 'hi');
 
     // Bind a response function to this request's respond object. This may be used in a number of
     // places
