@@ -319,7 +319,6 @@ class SlackMessageAdapter {
    */
   dispatch(payload) {
     const callback = this.matchCallback(payload);
-
     if (!callback) {
       debug('dispatch could not find a handler');
       return undefined;
@@ -335,7 +334,6 @@ class SlackMessageAdapter {
           throw new TypeError('Cannot use a Promise as the parameter for respond()');
         }
         debug('sending async response');
-
         return this.axios.post(payload.response_url, message);
       };
     }
@@ -371,7 +369,6 @@ class SlackMessageAdapter {
               debug('ERROR: Promise was late and failed. Use `.catch()` to handle errors.');
               throw callbackError;
             });
-
             return { status: 200 };
           }
 
