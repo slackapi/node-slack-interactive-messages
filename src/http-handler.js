@@ -1,5 +1,6 @@
 import debugFactory from 'debug';
 import { packageIdentifier } from './util';
+import getRawBody from 'raw-body';
 import qs from 'qs';
 import crypto from 'crypto';
 
@@ -32,23 +33,6 @@ export function createHTTPHandler(adapter) {
     };
   }
 
-  function buildRawBody(req) {
-    return new Promise(function(resolve, reject) {
-      let body = [];
-
-      req.on('error', (err) => {
-        
-        reject(err);
-      }).on('data', (chunk) => {
-        body.push(chunk);
-      }).on('end', () => {
-        const rawBody = Buffer.concat(body).toString();
-        resolve(rawBody);
-      })
-    })
-    
-  }
-
   function parseBody(req, body) {
     const type = req.headers['content-type'];
 
@@ -73,14 +57,12 @@ export function createHTTPHandler(adapter) {
 
     debug('request received - method: %s, path: %s', req.method, req.url);
     // Builds body of the request from stream and returns the raw request body
-    buildRawBody(req)
+    getRawBody(req)
     .then((rawBody) => {
-      if (!rawBody) return false;
+      rawBody = rawBody.toString();
 
-      // Verify the request signature
-      const requestIsVerified = verifyRequestSignature(adapter.signingSecret, req, rawBody);
-
-      if (requestIsVerified) {
+      if (verifyRequestSignature(adapter.signingSecret, req, rawBody)) {
+        // Request signature is verified
         // Function used to send response
         const respond = sendResponse(res);
         // Parse raw body
