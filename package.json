@@ -29,10 +29,6 @@
     "qs": "^6.5.2",
     "raw-body": "^2.3.3"
   },
-  "optionalDependencies": {
-    "express": "^4.0.0",
-    "body-parser": "^1.4.3"
-  },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-eslint": "^8.2.2",

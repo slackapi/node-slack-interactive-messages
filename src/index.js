@@ -1,7 +1,7 @@
 /**
  * @module @slack/interactive-messages
  */
-import { errorCodes as middlewareErrorCodes } from './express-middleware';
+import { errorCodes as middlewareErrorCodes } from './http-handler';
 import SlackMessageAdapter from './adapter';
 
 /**

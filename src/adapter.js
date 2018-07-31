@@ -9,8 +9,7 @@ import isPlainObject from 'lodash.isplainobject';
 import isRegExp from 'lodash.isregexp';
 import isFunction from 'lodash.isfunction';
 import debugFactory from 'debug';
-import { createExpressMiddleware } from './express-middleware';
-import { createHTTPHandler } from './http-handler';
+import { createHTTPHandler, errorCodes } from './http-handler';
 import { packageIdentifier, promiseTimeout, errorCodes as utilErrorCodes } from './util';
 
 const debug = debugFactory('@slack/interactive-messages:adapter');
@@ -200,9 +199,30 @@ class SlackMessageAdapter {
    * @returns {ExpressMiddlewareFunc} - A middleware function http://expressjs.com/en/guide/using-middleware.html
    */
   expressMiddleware() {
-    return createExpressMiddleware(this);
+    const requestListener = this.requestListener();
+    return (req, res, next) => {
+      // If parser is being used, we can't verify request signature
+      if (req.body) {
+        const error = new Error('Parsing request body prohibits request signature verification');
+        error.code = errorCodes.BODY_PARSER_NOT_PERMITTED;
+        next(error);
+        return;
+      }
+      try {
+        requestListener(req, res);
+      } catch (error) {
+        debug(error);
+        next(error);
+      }
+    }
   }
 
+  /**
+   * Create a middleware function that handles HTTP requests, verifies requests
+   * and dispatches responses
+   *
+   * @returns {slackMessageAdapterMiddleware}
+   */
   requestListener() {
     return createHTTPHandler(this);
   }
