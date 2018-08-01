@@ -145,10 +145,10 @@ class SlackMessageAdapter {
   createServer(path = '/slack/actions') {
     // TODO: more options (like https)
     return Promise.resolve().then(() => {
-        debug('server created - path: %s', path);
+      debug('server created - path: %s', path);
 
-        return http.createServer(this.requestListener());
-      });
+      return http.createServer(this.requestListener());
+    });
   }
 
   /**
@@ -214,7 +214,7 @@ class SlackMessageAdapter {
         debug(error);
         next(error);
       }
-    }
+    };
   }
 
   /**

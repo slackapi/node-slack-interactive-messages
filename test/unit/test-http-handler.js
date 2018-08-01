@@ -1,47 +1,69 @@
 var assert = require('chai').assert;
 var sinon = require('sinon');
-var systemUnderTest = require('../../dist/express-middleware');
-var createExpressMiddleware = systemUnderTest.createExpressMiddleware;
+var crypto = require('crypto');
+var proxyquire = require('proxyquire');
+var correctRawBody = 'payload=%7B%22type%22%3A%22interactive_message%22%7D';
+var getRawBodyStub = sinon.stub().resolves(correctRawBody);
+var systemUnderTest = proxyquire('../../dist/http-handler', {
+  'raw-body': getRawBodyStub
+});
+var createHTTPHandler = systemUnderTest.createHTTPHandler;
 var errorCodes = systemUnderTest.errorCodes;
-
 // fixtures
-var correctVerificationToken = 'VERIFICATION_TOKEN';
+var correctSigningSecret = 'SIGNING_SECRET';
+var requestSigningVersion = 'v0';
 
-function createRequest(payload) {
+function createRequestSignature(signingSecret, ts, rawBody) {
+  const hmac = crypto.createHmac('sha256', signingSecret);
+  hmac.update(`${requestSigningVersion}:${ts}:${rawBody}`);
+  return `${requestSigningVersion}=${hmac.digest('hex')}`;
+}
+
+function createRequest(rawBody, signingSecret, ts) {
+  const signature = createRequestSignature(signingSecret, ts, rawBody);
+  const headers = {
+    'x-slack-signature': signature,
+    'x-slack-request-timestamp': ts,
+    'content-type': 'application/x-www-form-urlencoded'
+  };
   return {
-    body: {
-      payload: JSON.stringify(payload)
-    }
+    body: rawBody,
+    headers: headers
   };
 }
 
-describe('createExpressMiddleware', function () {
+
+describe('createHTTPHandler', function () {
   beforeEach(function () {
     this.dispatch = sinon.stub();
     this.res = sinon.stub({
       status: function () { },
+      setHeader: function () { },
       set: function () { },
       send: function () { },
       json: function () { },
       end: function () { }
     });
     this.next = sinon.stub();
-    this.middleware = createExpressMiddleware({
-      verificationToken: correctVerificationToken,
+
+    this.middleware = createHTTPHandler({
+      signingSecret: correctSigningSecret,
       dispatch: this.dispatch
     });
   });
 
-  it('should verify a correct token', function (done) {
+  it('should verify a correct signing secret', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
+    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+
     dispatch.resolves({ status: 200 });
     res.end.callsFake(function () {
       assert(dispatch.called);
-      assert(res.status.calledWith(200));
+      assert.equal(res.statusCode, 200);
       done();
     });
-    this.middleware(createRequest({ token: correctVerificationToken }), res, this.next);
+    this.middleware(req, res);
   });
 
   it('should fail token verification with an incorrect token', function (done) {
@@ -62,7 +84,7 @@ describe('createExpressMiddleware', function () {
       assert(res.set.calledWith('X-Slack-Powered-By'));
       done();
     });
-    this.middleware(createRequest({ token: correctVerificationToken }), res, this.next);
+    this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
   });
 
   it('should respond to ssl check requests', function (done) {
@@ -92,7 +114,7 @@ describe('createExpressMiddleware', function () {
         assert.deepEqual(json, content);
         done();
       });
-      this.middleware(createRequest({ token: correctVerificationToken }), res, this.next);
+      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
     });
 
     it('should handle an undefined content key as no body', function (done) {
@@ -104,7 +126,7 @@ describe('createExpressMiddleware', function () {
         assert(res.status.calledWith(500));
         done();
       });
-      this.middleware(createRequest({ token: correctVerificationToken }), res, this.next);
+      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
     });
 
     it('should handle a string content key as the literal body', function (done) {
@@ -118,7 +140,7 @@ describe('createExpressMiddleware', function () {
         assert.deepEqual(body, content);
         done();
       });
-      this.middleware(createRequest({ token: correctVerificationToken }), res, this.next);
+      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
     });
   });
 
@@ -135,7 +157,7 @@ describe('createExpressMiddleware', function () {
 
   it('should forward unmatched dispatches to the next middleware', function () {
     this.dispatch.returns(undefined);
-    this.middleware(createRequest({ token: correctVerificationToken }), this.res, this.next);
+    this.middleware(createRequest({ token: correctSigningSecret }), this.res, this.next);
     assert(this.dispatch.called);
     assert(this.next.called);
     assert.equal(this.next.firstCall.args.length, 0);
