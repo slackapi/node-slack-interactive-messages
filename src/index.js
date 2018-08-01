@@ -18,6 +18,6 @@ export const errorCodes = middlewareErrorCodes;
  * @param {Object} options
  * @returns {module:adapter~SlackMessageAdapter}
  */
-export function createMessageAdapter(verificationToken, options) {
-  return new SlackMessageAdapter(verificationToken, options);
+export function createMessageAdapter(signingSecret, options) {
+  return new SlackMessageAdapter(signingSecret, options);
 }

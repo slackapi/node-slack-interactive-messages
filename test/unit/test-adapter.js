@@ -5,6 +5,7 @@ var assert = require('chai').assert;
 var sinon = require('sinon');
 var nop = require('nop');
 var getRandomPort = require('get-random-port');
+var errorCodes = require('../../dist/http-handler').errorCodes;
 var systemUnderTest = require('../../dist/adapter');
 var SlackMessageAdapter = systemUnderTest.default;
 var delayed = require('../helpers').delayed;
@@ -107,9 +108,35 @@ describe('SlackMessageAdapter', function () {
   describe('#expressMiddleware()', function () {
     beforeEach(function () {
       this.adapter = new SlackMessageAdapter(workingSigningSecret);
+      this.next = sinon.stub();
+      this.dispatch = sinon.stub();
+      this.res = sinon.stub({
+        setHeader: function () { },
+        end: function () { }
+      });
+      this.middleware = this.adapter.expressMiddleware();
     });
     it('should return a function', function () {
-      var middleware = this.adapter.expressMiddleware();
+      assert.isFunction(this.middleware);
+    });
+    it('should error when body parser is used', function () {
+      var middleware = this.middleware;
+      var req = { body: { } };
+      var res = this.res;
+      var next = this.next;
+      next.callsFake(function (err) {
+        assert.equal(err.code, errorCodes.BODY_PARSER_NOT_PERMITTED);
+      });
+      middleware(req, res, next);
+    });
+  });
+
+  describe('#requestListener()', function () {
+    beforeEach(function () {
+      this.adapter = new SlackMessageAdapter(workingSigningSecret);
+    });
+    it('should return a function', function () {
+      var middleware = this.adapter.requestListener();
       assert.isFunction(middleware);
     });
   });
