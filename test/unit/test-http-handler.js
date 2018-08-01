@@ -3,12 +3,11 @@ var sinon = require('sinon');
 var crypto = require('crypto');
 var proxyquire = require('proxyquire');
 var correctRawBody = 'payload=%7B%22type%22%3A%22interactive_message%22%7D';
-var getRawBodyStub = sinon.stub().resolves(correctRawBody);
+var getRawBodyStub = sinon.stub();
 var systemUnderTest = proxyquire('../../dist/http-handler', {
   'raw-body': getRawBodyStub
 });
 var createHTTPHandler = systemUnderTest.createHTTPHandler;
-var errorCodes = systemUnderTest.errorCodes;
 // fixtures
 var correctSigningSecret = 'SIGNING_SECRET';
 var requestSigningVersion = 'v0';
@@ -45,6 +44,7 @@ describe('createHTTPHandler', function () {
       end: function () { }
     });
     this.next = sinon.stub();
+    this.parseBody = sinon.stub();
 
     this.middleware = createHTTPHandler({
       signingSecret: correctSigningSecret,
@@ -56,8 +56,8 @@ describe('createHTTPHandler', function () {
     var dispatch = this.dispatch;
     var res = this.res;
     var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
-
     dispatch.resolves({ status: 200 });
+    getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(dispatch.called);
       assert.equal(res.statusCode, 200);
@@ -66,41 +66,66 @@ describe('createHTTPHandler', function () {
     this.middleware(req, res);
   });
 
-  it('should fail token verification with an incorrect token', function (done) {
+  it('should fail request signing verification with an incorrect signing secret', function (done) {
+    var dispatch = this.dispatch;
     var res = this.res;
-    this.next.callsFake(function (error) {
-      assert.equal(error.code, errorCodes.TOKEN_VERIFICATION_FAILURE);
-      assert(res.end.notCalled);
+    var req = createRequest(correctRawBody, 'INVALID_SECRET', Math.floor(Date.now() / 1000));
+    getRawBodyStub.resolves(correctRawBody);
+    res.end.callsFake(function () {
+      assert(dispatch.notCalled);
+      assert.equal(res.statusCode, 404);
       done();
     });
-    this.middleware(createRequest({ token: 'INVALID_TOKEN' }), res, this.next);
+    this.middleware(req, res);
+  });
+
+  it('should fail request signing verification with old timestamp', function (done) {
+    var dispatch = this.dispatch;
+    var res = this.res;
+    var sixMinutesAgo = Math.floor(Date.now() / 1000) - (60 * 6);
+    var req = createRequest(correctRawBody, correctSigningSecret, sixMinutesAgo);
+    getRawBodyStub.resolves(correctRawBody);
+    res.end.callsFake(function () {
+      assert(dispatch.notCalled);
+      assert.equal(res.statusCode, 404);
+      done();
+    });
+    this.middleware(req, res);
   });
 
   it('should set an identification header in its responses', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
+    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
     dispatch.resolves({ status: 200 });
+    getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
-      assert(res.set.calledWith('X-Slack-Powered-By'));
+      assert(res.setHeader.calledWith('X-Slack-Powered-By'));
       done();
     });
-    this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
+    this.middleware(req, res);
   });
 
   it('should respond to ssl check requests', function (done) {
     var dispatch = this.dispatch;
+    var parseBody = this.parseBody;
     var res = this.res;
+    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+    var sslRawBody = '%7B%20body%3A%20%7B%20ssl_check%3A%201%20%7D%20%7D';
+    getRawBodyStub.resolves(sslRawBody);
+    parseBody.returns({ body: { ssl_check: 1 } });
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
       done();
     });
-    this.middleware({ body: { ssl_check: 1 } }, res, this.next);
+    this.middleware(req, res);
   });
 
   describe('handling dispatch results', function () {
     it('should serialize objects in the content key as JSON', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
+      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
       var content = {
         abc: 'def',
         ghi: true,
@@ -108,58 +133,44 @@ describe('createHTTPHandler', function () {
         p: 5
       };
       dispatch.resolves({ status: 200, content: content });
-      res.json.callsFake(function (json) {
+      getRawBodyStub.resolves(correctRawBody);
+      res.end.callsFake(function (json) {
         assert(dispatch.called);
-        assert(res.status.calledWith(200));
-        assert.deepEqual(json, content);
+        assert.equal(res.statusCode, 200);
+        assert.deepEqual(json, JSON.stringify(content));
         done();
       });
-      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
+      this.middleware(req, res);
     });
 
     it('should handle an undefined content key as no body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
+      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
       dispatch.resolves({ status: 500 });
+      getRawBodyStub.resolves(correctRawBody);
       res.end.callsFake(function () {
         assert(dispatch.called);
-        assert(res.status.calledWith(500));
+        assert.equal(res.statusCode, 500);
         done();
       });
-      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
+      this.middleware(req, res);
     });
 
     it('should handle a string content key as the literal body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
+      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
       var content = 'hello, world';
       dispatch.resolves({ status: 200, content: content });
-      res.send.callsFake(function (body) {
+      getRawBodyStub.resolves(correctRawBody);
+      res.end.callsFake(function (body) {
         assert(dispatch.called);
-        assert(res.status.calledWith(200));
+        assert.equal(res.statusCode, 200);
         assert.deepEqual(body, content);
         done();
       });
-      this.middleware(createRequest({ token: correctSigningSecret }), res, this.next);
+      this.middleware(req, res);
     });
-  });
-
-  // express-specific
-  it('should fail when the request body is not parsed', function (done) {
-    var res = this.res;
-    this.next.callsFake(function (error) {
-      assert.equal(error.code, errorCodes.NO_BODY_PARSER);
-      assert(res.end.notCalled);
-      done();
-    });
-    this.middleware({ notBody: 'someValue' }, res, this.next);
-  });
-
-  it('should forward unmatched dispatches to the next middleware', function () {
-    this.dispatch.returns(undefined);
-    this.middleware(createRequest({ token: correctSigningSecret }), this.res, this.next);
-    assert(this.dispatch.called);
-    assert(this.next.called);
-    assert.equal(this.next.firstCall.args.length, 0);
   });
 });

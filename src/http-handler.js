@@ -27,11 +27,10 @@ export function createHTTPHandler(adapter) {
       const { status, content } = dispatchResult;
       res.statusCode = status;
       res.setHeader('X-Slack-Powered-By', poweredBy);
-
       if (typeof content === 'string') {
-        res.send(content);
+        res.end(content);
       } else if (content) {
-        res.json(content);
+        res.end(JSON.stringify(content));
       } else {
         res.end();
       }
