@@ -46,13 +46,17 @@ export function createHTTPHandler(adapter) {
    */
   function parseBody(req, body) {
     const type = req.headers['content-type'];
+    let parsedBody;
 
     if (type === 'application/x-www-form-urlencoded') {
-      return qs.parse(body);
+      parsedBody = qs.parse(body);
     } else if (type === 'application/json') {
-      return JSON.parse(body);
+      parsedBody = JSON.parse(body);
     }
-    return false;
+    if (parsedBody.payload) {
+      return JSON.parse(parsedBody.payload);
+    }
+    return parsedBody;
   }
 
   /**
@@ -122,7 +126,7 @@ export function createHTTPHandler(adapter) {
             return;
           }
 
-          const dispatchResult = adapter.dispatch(JSON.parse(body.payload));
+          const dispatchResult = adapter.dispatch(body);
 
           if (dispatchResult) {
             dispatchResult.then(respond);

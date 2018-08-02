@@ -3,6 +3,7 @@ var sinon = require('sinon');
 var crypto = require('crypto');
 var proxyquire = require('proxyquire');
 var correctRawBody = 'payload=%7B%22type%22%3A%22interactive_message%22%7D';
+
 var getRawBodyStub = sinon.stub();
 var systemUnderTest = proxyquire('../../dist/http-handler', {
   'raw-body': getRawBodyStub
@@ -108,14 +109,13 @@ describe('createHTTPHandler', function () {
 
   it('should respond to ssl check requests', function (done) {
     var dispatch = this.dispatch;
-    var parseBody = this.parseBody;
     var res = this.res;
-    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
-    var sslRawBody = '%7B%20body%3A%20%7B%20ssl_check%3A%201%20%7D%20%7D';
+    var sslRawBody = 'payload=%7B%22ssl_check%22%3A%221%22%7D';
+    var req = createRequest(sslRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
     getRawBodyStub.resolves(sslRawBody);
-    parseBody.returns({ body: { ssl_check: 1 } });
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
+      assert.equal(res.statusCode, 200);
       done();
     });
     this.middleware(req, res);
