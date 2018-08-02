@@ -56,6 +56,7 @@ export function createHTTPHandler(adapter) {
     if (parsedBody.payload) {
       return JSON.parse(parsedBody.payload);
     }
+
     return parsedBody;
   }
 

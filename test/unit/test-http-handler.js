@@ -19,12 +19,12 @@ function createRequestSignature(signingSecret, ts, rawBody) {
   return `${requestSigningVersion}=${hmac.digest('hex')}`;
 }
 
-function createRequest(rawBody, signingSecret, ts) {
+function createRequest(rawBody, signingSecret, ts, contentType) {
   const signature = createRequestSignature(signingSecret, ts, rawBody);
   const headers = {
     'x-slack-signature': signature,
     'x-slack-request-timestamp': ts,
-    'content-type': 'application/x-www-form-urlencoded'
+    'content-type': contentType
   };
   return {
     body: rawBody,
@@ -56,7 +56,9 @@ describe('createHTTPHandler', function () {
   it('should verify a correct signing secret', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+    var date = Math.floor(Date.now() / 1000);
+    var contentType = 'application/x-www-form-urlencoded';
+    var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
     dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
@@ -70,7 +72,9 @@ describe('createHTTPHandler', function () {
   it('should fail request signing verification with an incorrect signing secret', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var req = createRequest(correctRawBody, 'INVALID_SECRET', Math.floor(Date.now() / 1000));
+    var date = Math.floor(Date.now() / 1000);
+    var contentType = 'application/x-www-form-urlencoded';
+    var req = createRequest(correctRawBody, 'INVALID_SECRET', date, contentType);
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
@@ -84,7 +88,8 @@ describe('createHTTPHandler', function () {
     var dispatch = this.dispatch;
     var res = this.res;
     var sixMinutesAgo = Math.floor(Date.now() / 1000) - (60 * 6);
-    var req = createRequest(correctRawBody, correctSigningSecret, sixMinutesAgo);
+    var contentType = 'application/x-www-form-urlencoded';
+    var req = createRequest(correctRawBody, correctSigningSecret, sixMinutesAgo, contentType);
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
@@ -97,7 +102,9 @@ describe('createHTTPHandler', function () {
   it('should set an identification header in its responses', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+    var date = Math.floor(Date.now() / 1000);
+    var contentType = 'application/x-www-form-urlencoded';
+    var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
     dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
@@ -107,11 +114,31 @@ describe('createHTTPHandler', function () {
     this.middleware(req, res);
   });
 
+  it('should handle application/json', function (done) {
+    var dispatch = this.dispatch;
+    var res = this.res;
+    var date = Math.floor(Date.now() / 1000);
+    var contentType = 'application/json';
+    var jsonBody = '{"type":"interactive_message","team":{"id":"T47563693"' +
+      ',"domain":"watermelonsugar"}}';
+    var req = createRequest(jsonBody, correctSigningSecret, date, contentType);
+    dispatch.resolves({ status: 200 });
+    getRawBodyStub.resolves(jsonBody);
+    res.end.callsFake(function () {
+      assert(dispatch.called);
+      assert.equal(res.statusCode, 200);
+      done();
+    });
+    this.middleware(req, res);
+  });
+
   it('should respond to ssl check requests', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
     var sslRawBody = 'payload=%7B%22ssl_check%22%3A%221%22%7D';
-    var req = createRequest(sslRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+    var date = Math.floor(Date.now() / 1000);
+    var contentType = 'application/x-www-form-urlencoded';
+    var req = createRequest(sslRawBody, correctSigningSecret, date, contentType);
     getRawBodyStub.resolves(sslRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
@@ -125,7 +152,9 @@ describe('createHTTPHandler', function () {
     it('should serialize objects in the content key as JSON', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+      var date = Math.floor(Date.now() / 1000);
+      var contentType = 'application/x-www-form-urlencoded';
+      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
       var content = {
         abc: 'def',
         ghi: true,
@@ -146,7 +175,9 @@ describe('createHTTPHandler', function () {
     it('should handle an undefined content key as no body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+      var date = Math.floor(Date.now() / 1000);
+      var contentType = 'application/x-www-form-urlencoded';
+      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
       dispatch.resolves({ status: 500 });
       getRawBodyStub.resolves(correctRawBody);
       res.end.callsFake(function () {
@@ -160,7 +191,9 @@ describe('createHTTPHandler', function () {
     it('should handle a string content key as the literal body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var req = createRequest(correctRawBody, correctSigningSecret, Math.floor(Date.now() / 1000));
+      var date = Math.floor(Date.now() / 1000);
+      var contentType = 'application/x-www-form-urlencoded';
+      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
       var content = 'hello, world';
       dispatch.resolves({ status: 200, content: content });
       getRawBodyStub.resolves(correctRawBody);
