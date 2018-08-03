@@ -58,11 +58,51 @@ describe('createHTTPHandler', function () {
   it('should fail request signing verification with old timestamp', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var sixMinutesAgo = Math.floor(Date.now() / 1000) - (60 * 6);
-    var req = createRequest(correctSigningSecret, sixMinutesAgo, correctRawBody);
+    var date = Math.floor(Date.now() / 1000);
+    var req = createRequest(correctSigningSecret, date, correctRawBody);
+    dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
-      assert(dispatch.notCalled);
+      assert(dispatch.called);
+      assert.equal(res.statusCode, 200);
+      done();
+    });
+    this.requestListener(req, res);
+  });
+
+  it('should handle unexpected error', function (done) {
+    var res = this.res;
+    var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
+    getRawBodyStub.rejects(new Error('test error'));
+    res.end.callsFake(function (result) {
+      assert.equal(res.statusCode, 500);
+      assert.isUndefined(result);
+      done();
+    });
+    this.requestListener(req, res);
+  });
+
+  it('should provide message with unexpected errors in development', function (done) {
+    var res = this.res;
+    var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
+    process.env.NODE_ENV = 'development';
+    getRawBodyStub.rejects(new Error('test error'));
+    res.end.callsFake(function (result) {
+      assert.equal(res.statusCode, 500);
+      assert.equal(result, 'test error');
+      delete process.env.NODE_ENV;
+      done();
+    });
+    this.requestListener(req, res);
+  });
+
+  it('should handle no callback', function (done) {
+    var res = this.res;
+    var dispatch = this.dispatch;
+    var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
+    dispatch.returns(undefined);
+    getRawBodyStub.resolves(correctRawBody);
+    res.end.callsFake(function () {
       assert.equal(res.statusCode, 404);
       done();
     });
