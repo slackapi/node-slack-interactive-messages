@@ -58,13 +58,13 @@ describe('createHTTPHandler', function () {
   it('should fail request signing verification with old timestamp', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var date = Math.floor(Date.now() / 1000);
-    var req = createRequest(correctSigningSecret, date, correctRawBody);
+    var sixMinutesAgo = Math.floor(Date.now() / 1000) - (60 * 6);
+    var req = createRequest(correctSigningSecret, sixMinutesAgo, correctRawBody);
     dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
-      assert(dispatch.called);
-      assert.equal(res.statusCode, 200);
+      assert(dispatch.notCalled);
+      assert.equal(res.statusCode, 404);
       done();
     });
     this.requestListener(req, res);
