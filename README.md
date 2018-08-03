@@ -38,8 +38,7 @@ Get started by [creating a Slack App](https://api.slack.com/apps/new) if you hav
 On the **Basic Information** page, in the section for **App Credentials**, note the
 **Signing Secret**. You will need it to initialize the adapter.
 
-> ⚠️ As of `v1.0.0`, the interactive message adapter no longer accepts legacy verification tokens. You must pass ahttps://api.slack.com/docs/verifying-requests-from-slack
- signing secret [to verify requests from Slack](https://api.slack.com/docs/verifying-requests-from-slack).
+> ⚠️ As of `v1.0.0`, the interactive message adapter no longer accepts legacy verification tokens. You must pass a signing secret [to verify requests from Slack](https://api.slack.com/docs/verifying-requests-from-slack).
 
 Select the **Interactive Components** feature, and enable it. Input a **Request URL**. If your
 app will use dynamic message menus, you also need to input a **Options Load URL**.
@@ -131,7 +130,7 @@ http.createServer(app).listen(port, () => {
 });
 ```
 
-> ⚠️ As of `v1.0.0`, the interactive message adapter parses raw request bodies while performing request signing verification. This means developers no longer need to use the `body-parser` package to parse urlencoded requests.
+> ⚠️ As of `v1.0.0`, the interactive message adapter parses raw request bodies while performing request signing verification. This means developers no longer need to use `body-parser` middleware to parse urlencoded requests.
 
 **Pro-Tip**: You can combine this package and
 [`@slack/events-api`](https://github.com/slackapi/node-slack-events-api) by attaching each to the
