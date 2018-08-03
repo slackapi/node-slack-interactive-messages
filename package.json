@@ -26,7 +26,6 @@
     "lodash.isplainobject": "^4.0.6",
     "lodash.isregexp": "^4.0.1",
     "lodash.isstring": "^4.0.1",
-    "qs": "^6.5.2",
     "raw-body": "^2.3.3"
   },
   "devDependencies": {

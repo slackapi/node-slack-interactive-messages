@@ -1,9 +1,8 @@
 var assert = require('chai').assert;
 var sinon = require('sinon');
-var crypto = require('crypto');
 var proxyquire = require('proxyquire');
+var createRequest = require('../helpers').createRequest;
 var correctRawBody = 'payload=%7B%22type%22%3A%22interactive_message%22%7D';
-
 var getRawBodyStub = sinon.stub();
 var systemUnderTest = proxyquire('../../dist/http-handler', {
   'raw-body': getRawBodyStub
@@ -11,43 +10,18 @@ var systemUnderTest = proxyquire('../../dist/http-handler', {
 var createHTTPHandler = systemUnderTest.createHTTPHandler;
 // fixtures
 var correctSigningSecret = 'SIGNING_SECRET';
-var requestSigningVersion = 'v0';
-
-function createRequestSignature(signingSecret, ts, rawBody) {
-  const hmac = crypto.createHmac('sha256', signingSecret);
-  hmac.update(`${requestSigningVersion}:${ts}:${rawBody}`);
-  return `${requestSigningVersion}=${hmac.digest('hex')}`;
-}
-
-function createRequest(rawBody, signingSecret, ts, contentType) {
-  const signature = createRequestSignature(signingSecret, ts, rawBody);
-  const headers = {
-    'x-slack-signature': signature,
-    'x-slack-request-timestamp': ts,
-    'content-type': contentType
-  };
-  return {
-    body: rawBody,
-    headers: headers
-  };
-}
-
 
 describe('createHTTPHandler', function () {
   beforeEach(function () {
     this.dispatch = sinon.stub();
     this.res = sinon.stub({
-      status: function () { },
       setHeader: function () { },
-      set: function () { },
       send: function () { },
-      json: function () { },
       end: function () { }
     });
     this.next = sinon.stub();
-    this.parseBody = sinon.stub();
-
-    this.middleware = createHTTPHandler({
+    this.correctDate = Math.floor(Date.now() / 1000);
+    this.requestListener = createHTTPHandler({
       signingSecret: correctSigningSecret,
       dispatch: this.dispatch
     });
@@ -57,8 +31,7 @@ describe('createHTTPHandler', function () {
     var dispatch = this.dispatch;
     var res = this.res;
     var date = Math.floor(Date.now() / 1000);
-    var contentType = 'application/x-www-form-urlencoded';
-    var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
+    var req = createRequest(correctSigningSecret, date, correctRawBody);
     dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
@@ -66,95 +39,68 @@ describe('createHTTPHandler', function () {
       assert.equal(res.statusCode, 200);
       done();
     });
-    this.middleware(req, res);
+    this.requestListener(req, res);
   });
 
   it('should fail request signing verification with an incorrect signing secret', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var date = Math.floor(Date.now() / 1000);
-    var contentType = 'application/x-www-form-urlencoded';
-    var req = createRequest(correctRawBody, 'INVALID_SECRET', date, contentType);
+    var req = createRequest('INVALID_SECRET', this.correctDate, correctRawBody);
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
       assert.equal(res.statusCode, 404);
       done();
     });
-    this.middleware(req, res);
+    this.requestListener(req, res);
   });
 
   it('should fail request signing verification with old timestamp', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
     var sixMinutesAgo = Math.floor(Date.now() / 1000) - (60 * 6);
-    var contentType = 'application/x-www-form-urlencoded';
-    var req = createRequest(correctRawBody, correctSigningSecret, sixMinutesAgo, contentType);
+    var req = createRequest(correctSigningSecret, sixMinutesAgo, correctRawBody);
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
       assert.equal(res.statusCode, 404);
       done();
     });
-    this.middleware(req, res);
+    this.requestListener(req, res);
   });
 
   it('should set an identification header in its responses', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
-    var date = Math.floor(Date.now() / 1000);
-    var contentType = 'application/x-www-form-urlencoded';
-    var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
+    var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
     dispatch.resolves({ status: 200 });
     getRawBodyStub.resolves(correctRawBody);
     res.end.callsFake(function () {
       assert(res.setHeader.calledWith('X-Slack-Powered-By'));
       done();
     });
-    this.middleware(req, res);
-  });
-
-  it('should handle application/json', function (done) {
-    var dispatch = this.dispatch;
-    var res = this.res;
-    var date = Math.floor(Date.now() / 1000);
-    var contentType = 'application/json';
-    var jsonBody = '{"type":"interactive_message","team":{"id":"T47563693"' +
-      ',"domain":"watermelonsugar"}}';
-    var req = createRequest(jsonBody, correctSigningSecret, date, contentType);
-    dispatch.resolves({ status: 200 });
-    getRawBodyStub.resolves(jsonBody);
-    res.end.callsFake(function () {
-      assert(dispatch.called);
-      assert.equal(res.statusCode, 200);
-      done();
-    });
-    this.middleware(req, res);
+    this.requestListener(req, res);
   });
 
   it('should respond to ssl check requests', function (done) {
     var dispatch = this.dispatch;
     var res = this.res;
     var sslRawBody = 'payload=%7B%22ssl_check%22%3A%221%22%7D';
-    var date = Math.floor(Date.now() / 1000);
-    var contentType = 'application/x-www-form-urlencoded';
-    var req = createRequest(sslRawBody, correctSigningSecret, date, contentType);
+    var req = createRequest(correctSigningSecret, this.correctDate, sslRawBody);
     getRawBodyStub.resolves(sslRawBody);
     res.end.callsFake(function () {
       assert(dispatch.notCalled);
       assert.equal(res.statusCode, 200);
       done();
     });
-    this.middleware(req, res);
+    this.requestListener(req, res);
   });
 
   describe('handling dispatch results', function () {
     it('should serialize objects in the content key as JSON', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var date = Math.floor(Date.now() / 1000);
-      var contentType = 'application/x-www-form-urlencoded';
-      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
+      var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
       var content = {
         abc: 'def',
         ghi: true,
@@ -169,31 +115,28 @@ describe('createHTTPHandler', function () {
         assert.deepEqual(json, JSON.stringify(content));
         done();
       });
-      this.middleware(req, res);
+      this.requestListener(req, res);
     });
 
     it('should handle an undefined content key as no body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var date = Math.floor(Date.now() / 1000);
-      var contentType = 'application/x-www-form-urlencoded';
-      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
+      var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
       dispatch.resolves({ status: 500 });
       getRawBodyStub.resolves(correctRawBody);
-      res.end.callsFake(function () {
+      res.end.callsFake(function (body) {
         assert(dispatch.called);
+        assert.isUndefined(body);
         assert.equal(res.statusCode, 500);
         done();
       });
-      this.middleware(req, res);
+      this.requestListener(req, res);
     });
 
     it('should handle a string content key as the literal body', function (done) {
       var dispatch = this.dispatch;
       var res = this.res;
-      var date = Math.floor(Date.now() / 1000);
-      var contentType = 'application/x-www-form-urlencoded';
-      var req = createRequest(correctRawBody, correctSigningSecret, date, contentType);
+      var req = createRequest(correctSigningSecret, this.correctDate, correctRawBody);
       var content = 'hello, world';
       dispatch.resolves({ status: 200, content: content });
       getRawBodyStub.resolves(correctRawBody);
@@ -203,7 +146,7 @@ describe('createHTTPHandler', function () {
         assert.deepEqual(body, content);
         done();
       });
-      this.middleware(req, res);
+      this.requestListener(req, res);
     });
   });
 });

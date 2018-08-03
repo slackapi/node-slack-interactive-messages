@@ -9,10 +9,14 @@ import isPlainObject from 'lodash.isplainobject';
 import isRegExp from 'lodash.isregexp';
 import isFunction from 'lodash.isfunction';
 import debugFactory from 'debug';
-import { createHTTPHandler, errorCodes } from './http-handler';
+import { createHTTPHandler } from './http-handler';
 import { packageIdentifier, promiseTimeout, errorCodes as utilErrorCodes } from './util';
 
 const debug = debugFactory('@slack/interactive-messages:adapter');
+
+export const errorCodes = {
+  BODY_PARSER_NOT_PERMITTED: 'SLACKADAPTER_BODY_PARSER_NOT_PERMITTED_FAILURE',
+};
 
 /**
  * Transforms various forms of matching constraints to a single standard object shape
@@ -208,12 +212,7 @@ class SlackMessageAdapter {
         next(error);
         return;
       }
-      try {
-        requestListener(req, res);
-      } catch (error) {
-        debug(error);
-        next(error);
-      }
+      requestListener(req, res);
     };
   }
 
@@ -221,7 +220,7 @@ class SlackMessageAdapter {
    * Create a middleware function that handles HTTP requests, verifies requests
    * and dispatches responses
    *
-   * @returns {slackMessageAdapterMiddleware}
+   * @returns {slackRequestListener}
    */
   requestListener() {
     return createHTTPHandler(this);

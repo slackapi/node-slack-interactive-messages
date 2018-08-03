@@ -1,23 +1,21 @@
 import debugFactory from 'debug';
 import getRawBody from 'raw-body';
-import qs from 'qs';
+import querystring from 'querystring';
 import crypto from 'crypto';
 import { packageIdentifier } from './util';
 
-export const errorCodes = {
-  SIGNATURE_VERIFICATION_FAILURE: 'SLACKMESSAGEMIDDLEWARE_REQUEST_SIGNATURE_VERIFICATION_FAILURE',
-  REQUEST_TIME_FAILURE: 'SLACKMESSAGEMIDDLEWARE_REQUEST_TIMELIMIT_FAILURE',
-  BODY_PARSING_FAILED: 'SLACKMESSAGEMIDDLEWARE_BODY_PARSING_FAILURE',
-  BODY_PARSER_NOT_PERMITTED: 'SLACKMESSAGEMIDDLEWARE_BODY_PARSER_NOT_PERMITTED_FAILURE',
-};
-
 const debug = debugFactory('@slack/interactive-messages:http-handler');
+
+export const errorCodes = {
+  SIGNATURE_VERIFICATION_FAILURE: 'SLACKHTTPHANDLER_REQUEST_SIGNATURE_VERIFICATION_FAILURE',
+  REQUEST_TIME_FAILURE: 'SLACKHTTPHANDLER_REQUEST_TIMELIMIT_FAILURE',
+};
 
 export function createHTTPHandler(adapter) {
   const poweredBy = packageIdentifier();
 
   /**
-   * Parses raw bodies of requests
+   * Handles sending responses
    *
    * @param {Object} res - Response object
    * @returns {Function} Returns a function used to send response
@@ -40,19 +38,11 @@ export function createHTTPHandler(adapter) {
   /**
    * Parses raw bodies of requests
    *
-   * @param {Object} req - Request object
    * @param {string} body - Raw body of request
    * @returns {Object} Parsed body of the request
    */
-  function parseBody(req, body) {
-    const type = req.headers['content-type'];
-    let parsedBody;
-
-    if (type === 'application/x-www-form-urlencoded') {
-      parsedBody = qs.parse(body);
-    } else if (type === 'application/json') {
-      parsedBody = JSON.parse(body);
-    }
+  function parseBody(body) {
+    const parsedBody = querystring.parse(body);
     if (parsedBody.payload) {
       return JSON.parse(parsedBody.payload);
     }
@@ -64,15 +54,15 @@ export function createHTTPHandler(adapter) {
    * Method to verify signature of requests
    *
    * @param {string} signingSecret - Signing secret used to verify request signature
-   * @param {Object} req - Request object
-   * @param {string} rawBody - String of raw body
+   * @param {Object} requestHeaders - Request headers
+   * @param {string} body - Raw body string
    * @returns {boolean} Indicates if request is verified
    */
-  function verifyRequestSignature(signingSecret, req, rawBody) {
+  function verifyRequestSignature(signingSecret, requestHeaders, body) {
     // Request signature
-    const signature = req.headers['x-slack-signature'];
+    const signature = requestHeaders['x-slack-signature'];
     // Request timestamp
-    const ts = req.headers['x-slack-request-timestamp'];
+    const ts = requestHeaders['x-slack-request-timestamp'];
 
     // Divide current date to match Slack ts format
     // Subtract 5 minutes from current time
@@ -87,7 +77,7 @@ export function createHTTPHandler(adapter) {
 
     const hmac = crypto.createHmac('sha256', signingSecret);
     const [version, hash] = signature.split('=');
-    hmac.update(`${version}:${ts}:${rawBody}`);
+    hmac.update(`${version}:${ts}:${body}`);
 
     if (hash !== hmac.digest('hex')) {
       debug('request signature is not valid');
@@ -101,13 +91,13 @@ export function createHTTPHandler(adapter) {
   }
 
   /**
-   * Middleware used to handle Slack requests and send responses and
+   * Request listener used to handle Slack requests and send responses and
    * verify request signatures
    *
    * @param {Object} req - Request object
    * @param {Object} res - Response object
    */
-  return function slackMessageAdapterMiddleware(req, res) {
+  return function slackRequestListener(req, res) {
     debug('request received - method: %s, path: %s', req.method, req.url);
     // Function used to send response
     const respond = sendResponse(res);
@@ -117,10 +107,10 @@ export function createHTTPHandler(adapter) {
       .then((r) => {
         const rawBody = r.toString();
 
-        if (verifyRequestSignature(adapter.signingSecret, req, rawBody)) {
+        if (verifyRequestSignature(adapter.signingSecret, req.headers, rawBody)) {
           // Request signature is verified
           // Parse raw body
-          const body = parseBody(req, rawBody);
+          const body = parseBody(rawBody);
 
           if (body.ssl_check) {
             respond({ status: 200 });
@@ -131,14 +121,20 @@ export function createHTTPHandler(adapter) {
 
           if (dispatchResult) {
             dispatchResult.then(respond);
+          } else {
+            // No callback was matched
+            debug('no callback was matched');
+            respond({ status: 404 });
           }
         }
       }).catch((error) => {
         if (error.code === errorCodes.SIGNATURE_VERIFICATION_FAILURE ||
           error.code === errorCodes.REQUEST_TIME_FAILURE) {
           respond({ status: 404 });
+        } else if (process.env.NODE_ENV === 'development') {
+          respond({ status: 500, content: error.message });
         } else {
-          throw error;
+          respond({ status: 500 });
         }
       });
   };

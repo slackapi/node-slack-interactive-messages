@@ -4,25 +4,16 @@ var http = require('http');
 var assert = require('chai').assert;
 var sinon = require('sinon');
 var nop = require('nop');
-var crypto = require('crypto');
-var Readable = require('stream').Readable;
 var getRandomPort = require('get-random-port');
-var errorCodes = require('../../dist/http-handler').errorCodes;
 var systemUnderTest = require('../../dist/adapter');
+var createStreamRequest = require('../helpers').createStreamRequest;
+var errorCodes = systemUnderTest.errorCodes;
 var SlackMessageAdapter = systemUnderTest.default;
 var delayed = require('../helpers').delayed;
 
 // fixtures
 var workingSigningSecret = 'SIGNING_SECRET';
-var requestSigningVersion = 'v0';
 var workingRawBody = 'payload=%7B%22type%22%3A%22interactive_message%22%7D';
-var contentType = 'application/x-www-form-urlencoded';
-
-function createRequestSignature(signingSecret, ts, rawBody) {
-  const hmac = crypto.createHmac('sha256', signingSecret);
-  hmac.update(`${requestSigningVersion}:${ts}:${rawBody}`);
-  return `${requestSigningVersion}=${hmac.digest('hex')}`;
-}
 
 // test suite
 describe('SlackMessageAdapter', function () {
@@ -132,19 +123,19 @@ describe('SlackMessageAdapter', function () {
       var middleware = this.adapter.expressMiddleware();
       assert.isFunction(middleware);
     });
-    it('should error when body parser is used', function () {
+    it('should error when body parser is used', function (done) {
       var middleware = this.adapter.expressMiddleware();
       var req = { body: { } };
       var res = this.res;
       var next = this.next;
       next.callsFake(function (err) {
         assert.equal(err.code, errorCodes.BODY_PARSER_NOT_PERMITTED);
+        done();
       });
       middleware(req, res, next);
     });
-    it('should succeed with basic requests', function (done) {
+    it('should verify correctly signed request bodies', function (done) {
       var ts = Math.floor(Date.now() / 1000);
-      var signature = createRequestSignature(workingSigningSecret, ts, workingRawBody);
       var adapter = this.adapter;
       var middleware = adapter.expressMiddleware();
       var dispatch = this.dispatch;
@@ -152,17 +143,7 @@ describe('SlackMessageAdapter', function () {
       var next = this.next;
       adapter.dispatch = dispatch;
       // Create streamed request
-      const fakeRequest = new Readable({
-        read() {
-          this.push(workingRawBody);
-          this.push(null);
-        }
-      });
-      fakeRequest.headers = {
-        'x-slack-signature': signature,
-        'x-slack-request-timestamp': ts,
-        'content-type': contentType
-      };
+      const req = createStreamRequest(workingSigningSecret, ts, workingRawBody);
 
       dispatch.resolves({ status: 200 });
       res.end.callsFake(function () {
@@ -170,41 +151,7 @@ describe('SlackMessageAdapter', function () {
         assert.equal(res.statusCode, 200);
         done();
       });
-      middleware(fakeRequest, res, next);
-    });
-    it('should handle errors gracefully', function (done) {
-      var ts = Math.floor(Date.now() / 1000);
-      var signature = createRequestSignature(workingSigningSecret, ts, workingRawBody);
-      var adapter = this.adapter;
-      var errFn = sinon.stub();
-      var dispatch = this.dispatch;
-      var res = this.res;
-      var next = this.next;
-      var error = new Error('TEST ERROR');
-      adapter.requestListener = sinon.stub().returns(errFn);
-      // Create streamed request
-      const fakeRequest = new Readable({
-        read() {
-          this.push(workingRawBody);
-          this.push(null);
-        }
-      });
-      fakeRequest.headers = {
-        'x-slack-signature': signature,
-        'x-slack-request-timestamp': ts,
-        'content-type': contentType
-      };
-
-      errFn.callsFake(function () {
-        error.code = 'TEST_ERROR';
-        throw error;
-      });
-      next.callsFake(function (err) {
-        assert(dispatch.notCalled);
-        assert.equal(err.code, 'TEST_ERROR');
-        done();
-      });
-      adapter.expressMiddleware()(fakeRequest, res, next);
+      middleware(req, res, next);
     });
   });
 
