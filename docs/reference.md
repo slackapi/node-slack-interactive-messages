@@ -137,7 +137,7 @@ in order for incoming requests to be dispatched to this message adapter instance
 <a name="module_adapter--module.exports..SlackMessageAdapter+requestListener"></a>
 
 ##### slackInteractions.requestListener() ⇒ <code>slackRequestListener</code>
-Create a middleware function that handles HTTP requests, verifies requests
+Create a request listener function that handles HTTP requests, verifies requests
 and dispatches responses
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
