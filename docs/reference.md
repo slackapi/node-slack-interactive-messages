@@ -271,7 +271,7 @@ to the user. If there is no return value, then the user is shown an empty list o
 
 * [@slack/interactive-messages](#module_@slack/interactive-messages)
     * [.errorCodes](#module_@slack/interactive-messages.errorCodes) : <code>enum</code>
-    * [.createMessageAdapter(verificationToken, options)](#module_@slack/interactive-messages.createMessageAdapter) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+    * [.createMessageAdapter(signingSecret, options)](#module_@slack/interactive-messages.createMessageAdapter) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 
 
 * * *
@@ -288,14 +288,14 @@ Dictionary of error codes that may appear on errors emitted from this package's 
 
 <a name="module_@slack/interactive-messages.createMessageAdapter"></a>
 
-### @slack/interactive-messages.createMessageAdapter(verificationToken, options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+### @slack/interactive-messages.createMessageAdapter(signingSecret, options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 Factory method to create an instance of [SlackMessageAdapter](#new_module_adapter--module.exports..SlackMessageAdapter_new)
 
 **Kind**: static method of [<code>@slack/interactive-messages</code>](#module_@slack/interactive-messages)  
 
 | Param | Type |
 | --- | --- |
-| verificationToken | <code>string</code> | 
+| signingSecret | <code>string</code> | 
 | options | <code>Object</code> | 
 
 
