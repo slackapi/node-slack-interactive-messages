@@ -20,6 +20,7 @@
                 * [.start(port)](#module_adapter--module.exports..SlackMessageAdapter+start) ⇒ <code>Promise.&lt;void&gt;</code>
                 * [.stop()](#module_adapter--module.exports..SlackMessageAdapter+stop) ⇒ <code>Promise.&lt;void&gt;</code>
                 * [.expressMiddleware()](#module_adapter--module.exports..SlackMessageAdapter+expressMiddleware) ⇒ <code>ExpressMiddlewareFunc</code>
+                * [.requestListener()](#module_adapter--module.exports..SlackMessageAdapter+requestListener) ⇒ <code>slackRequestListener</code>
                 * [.action(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+action) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
                 * [.options(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
             * _inner_
@@ -51,6 +52,7 @@ An adapter for Slack's interactive message components such as buttons, menus, an
         * [.start(port)](#module_adapter--module.exports..SlackMessageAdapter+start) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.stop()](#module_adapter--module.exports..SlackMessageAdapter+stop) ⇒ <code>Promise.&lt;void&gt;</code>
         * [.expressMiddleware()](#module_adapter--module.exports..SlackMessageAdapter+expressMiddleware) ⇒ <code>ExpressMiddlewareFunc</code>
+        * [.requestListener()](#module_adapter--module.exports..SlackMessageAdapter+requestListener) ⇒ <code>slackRequestListener</code>
         * [.action(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+action) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
         * [.options(matchingConstraints, callback)](#module_adapter--module.exports..SlackMessageAdapter+options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
     * _inner_
@@ -132,6 +134,16 @@ in order for incoming requests to be dispatched to this message adapter instance
 
 * * *
 
+<a name="module_adapter--module.exports..SlackMessageAdapter+requestListener"></a>
+
+##### slackInteractions.requestListener() ⇒ <code>slackRequestListener</code>
+Create a middleware function that handles HTTP requests, verifies requests
+and dispatches responses
+
+**Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
+
+* * *
+
 <a name="module_adapter--module.exports..SlackMessageAdapter+action"></a>
 
 ##### slackInteractions.action(matchingConstraints, callback) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
@@ -144,6 +156,7 @@ following table describes it fully.
 :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
 **Button Press**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
 **Menu Selection**| Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` | Create a new message instead of replacing using `replace_original: false`
+**Message Action** | Message in response | When resolved before `syncResposeTimeout` or `lateResponseFallbackEnabled: false`, message in response<br />When resolved after `syncResponseTimeout` and `lateResponseFallbackEnabled: true`, message in request to `response_url` | Empty response | Message in request to `response_url` |
 **Dialog Submission**| Error list in response | Error list in response | Empty response | Message in request to `response_url` | Returning a Promise that takes longer than 3 seconds to resolve can result in the user seeing an error. Warning logged if a promise isn't completed before `syncResponseTimeout`.
 
 **Kind**: instance method of [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)  
@@ -258,7 +271,7 @@ to the user. If there is no return value, then the user is shown an empty list o
 
 * [@slack/interactive-messages](#module_@slack/interactive-messages)
     * [.errorCodes](#module_@slack/interactive-messages.errorCodes) : <code>enum</code>
-    * [.createMessageAdapter(signingSecret, options)](#module_@slack/interactive-messages.createMessageAdapter) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+    * [.createMessageAdapter(verificationToken, options)](#module_@slack/interactive-messages.createMessageAdapter) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 
 
 * * *
@@ -275,14 +288,14 @@ Dictionary of error codes that may appear on errors emitted from this package's 
 
 <a name="module_@slack/interactive-messages.createMessageAdapter"></a>
 
-### @slack/interactive-messages.createMessageAdapter(signingSecret, options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
+### @slack/interactive-messages.createMessageAdapter(verificationToken, options) ⇒ [<code>SlackMessageAdapter</code>](#module_adapter--module.exports..SlackMessageAdapter)
 Factory method to create an instance of [SlackMessageAdapter](#new_module_adapter--module.exports..SlackMessageAdapter_new)
 
 **Kind**: static method of [<code>@slack/interactive-messages</code>](#module_@slack/interactive-messages)  
 
 | Param | Type |
 | --- | --- |
-| signingSecret | <code>string</code> | 
+| verificationToken | <code>string</code> | 
 | options | <code>Object</code> | 
 
 
