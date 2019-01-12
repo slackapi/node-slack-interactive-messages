@@ -269,7 +269,7 @@ slackInteractions.action('create_order_dialog', (payload, respond) => {
   console.log(`The user ${payload.user.name} in team ${payload.team.domain} submitted a dialog`);
 
   // Check the values in `payload.submission` and report any possible errors 
-  //   in the format {errors: [{name:'user.name', error:'invalid username'}]}
+  //   in the format {errors: [{name:'username', error:'Uh-oh. This username has been taken!'}]}
   const errors = validateOrderSubmission(payload.submission);
   if (errors) {
     return errors;
