@@ -258,7 +258,7 @@ on the structure of the list of errors in the docs for
 
 The handler will also receive a `respond()` function, which can be used to send a message to the
 conversation where the dialog was triggered. **We recommend that apps use `respond()` to notify the
-user that the dialog submission was recieved** and use it again to communicate updates such as
+user that the dialog submission was received** and use it again to communicate updates such as
 success or failure.
 
 **Example dialog submission handler:**
