@@ -251,7 +251,7 @@ details about the structure of `payload` in the docs for
 
 Unlike with buttons and menus, the response does not replace the message (a dialog is not a message)
 but rather the response tells Slack whether the inputs are valid and the dialog can be closed on
-the user's screen. Your app returns a list of errors (or a Promise for a list of errors) from the
+the user's screen. Your app returns an object with a list of errors as a property (or a Promise for an object with a list of errors as a property) from the
 handler. If there are no errors, your app should return nothing from the handler. Find more details
 on the structure of the list of errors in the docs for
 [input validation](https://api.slack.com/dialogs#input_validation).
