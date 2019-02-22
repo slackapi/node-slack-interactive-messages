@@ -507,11 +507,13 @@ export default SlackMessageAdapter;
  */
 
 /**
- * A handler function for action requests (button presses, menu selections, and dialog submissions).
+ * A handler function for action requests (block actions, button presses, menu selections,
+ * and dialog submissions).
  *
  * @name module:adapter~SlackMessageAdapter~ActionHandler
  * @function
  * @param {Object} payload - an object describing the
+ * [block actions](https://api.slack.com/messaging/interactivity/enabling#understanding-payloads)
  * [button press](https://api.slack.com/docs/message-buttons#responding_to_message_actions),
  * [menu selection](https://api.slack.com/docs/message-menus#request_url_response), or
  * [dialog submission](https://api.slack.com/dialogs#evaluating_submission_responses).
@@ -559,7 +561,9 @@ export default SlackMessageAdapter;
  * [option groups list](https://api.slack.com/docs/interactive-message-field-guide#option_groups).
  * When the menu is within an interactive message, (`within: 'interactive_message'`) the option
  * keys are `text` and `value`. When the menu is within a dialog (`within: 'dialog'`) the option
- * keys are `label` and `value`. This function may also return a Promise either of these values.
- * If a Promise is returned and it does not complete within 3 seconds, Slack will display an error
- * to the user. If there is no return value, then the user is shown an empty list of options.
+ * keys are `label` and `value`. When the menu is within a dialog (`within: 'block_actions'`) the
+ * option keys are a text block and `value`. This function may also return a Promise either of
+ * these values. If a Promise is returned and it does not complete within 3 seconds, Slack will
+ * display an error to the user. If there is no return value, then the user is shown an empty list
+ * of options.
  */
