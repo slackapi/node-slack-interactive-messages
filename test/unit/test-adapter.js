@@ -268,16 +268,23 @@ describe('SlackMessageAdapter', function () {
           unregisterAllHandlers(adapter);
         });
       });
-      it('should throw when registering with invalid type constraints', function () {
-        var adapter = this.adapter;
-        var actionHandler = this.actionHandler;
-        var constraints = { type: 'not_a_real_action_type' };
-        assert.throws(function () {
-          adapter.action(constraints, actionHandler);
-        }, TypeError);
-      });
       it('should register with unfurl constraint successfully', function () {
         var constraints = { unfurl: true };
+        this.adapter.action(constraints, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
+      });
+      it('should register with blockId constraints successfully', function () {
+        var constraints = { blockId: 'my_block' };
+        this.adapter.action(constraints, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
+      });
+      it('should register with actionId constraints successfully', function () {
+        var constraints = { actionId: 'my_action' };
+        this.adapter.action(constraints, this.actionHandler);
+        assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
+      });
+      it('should register with compound block constraints successfully', function () {
+        var constraints = { blockId: 'my_block', actionId: 'wham' };
         this.adapter.action(constraints, this.actionHandler);
         assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
@@ -289,7 +296,8 @@ describe('SlackMessageAdapter', function () {
       it('should throw when registering with invalid compound constraints', function () {
         var adapter = this.adapter;
         var actionHandler = this.actionHandler;
-        var constraints = { callbackId: /\w+_callback/, type: 'not_a_real_action_type' };
+        // number isn't valid callbackId, all types are valid
+        var constraints = { callbackId: 111, type: 'button' };
         assert.throws(function () {
           adapter.action(constraints, actionHandler);
         }, TypeError);
