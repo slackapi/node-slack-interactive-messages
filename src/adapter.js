@@ -28,7 +28,7 @@ export const errorCodes = {
 function formatMatchingConstraints(matchingConstraints) {
   let ret = {};
   if (typeof matchingConstraints === 'undefined' || matchingConstraints === null) {
-    throw new TypeError('Callback ID cannot be undefined or null');
+    throw new TypeError('Constraints cannot be undefined or null');
   }
   if (!isPlainObject(matchingConstraints)) {
     ret.callbackId = matchingConstraints;
@@ -51,25 +51,16 @@ function validateConstraints(matchingConstraints) {
     return new TypeError('Callback ID must be a string or RegExp');
   }
 
-  return false;
-}
-
-/**
- * Validates properties of a matching constraints object specific to registering an action
- * @param {Object} matchingConstraints - object describing the constraints on a callback
- * @returns {Error|false} - a false value represents successful validation, otherwise an error to
- * describe why validation failed.
- * @private
- */
-function validateActionConstraints(actionConstraints) {
-  if (actionConstraints.type &&
-    !(actionConstraints.type === 'select' || actionConstraints.type === 'button' ||
-    actionConstraints.type === 'dialog_submission' || actionConstraints.type === 'message_action')
-  ) {
-    return new TypeError('Type must be \'select\', \'button\', \'dialog_submission\', or \'message_action\'');
+  if (matchingConstraints.blockId &&
+    !(isString(matchingConstraints.blockId) || isRegExp(matchingConstraints.blockId))) {
+    return new TypeError('Block ID must be a string or RegExp');
   }
 
-  // We don't need to validate unfurl, we'll just cooerce it to a boolean
+  if (matchingConstraints.actionId &&
+    !(isString(matchingConstraints.actionId) || isRegExp(matchingConstraints.actionId))) {
+    return new TypeError('Action ID must be a string or RegExp');
+  }
+
   return false;
 }
 
@@ -83,9 +74,10 @@ function validateActionConstraints(actionConstraints) {
 function validateOptionsConstraints(optionsConstraints) {
   if (optionsConstraints.within &&
     !(optionsConstraints.within === 'interactive_message' ||
+      optionsConstraints.within === 'block_actions' ||
       optionsConstraints.within === 'dialog')
   ) {
-    return new TypeError('Within must be \'interactive_message\' or \'dialog\'');
+    return new TypeError('Within must be \'block_actions\', \'interactive_message\' or \'dialog\'');
   }
 
   // We don't need to validate unfurl, we'll just cooerce it to a boolean
@@ -246,8 +238,13 @@ export class SlackMessageAdapter {
    * an object describing the constraints to match actions for the handler.
    * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExp to match against
    * the `callback_id`
-   * @param {string} [matchingConstraints.type] - when `select` only for menu selections, when
-   * `button` only for buttton presses, or when `dialog_submission` only for dialog submissions
+   * @param {string|RegExp} [matchingConstraints.blockId] - a string or RegExp to match against
+   * the `block_id`
+   * @param {string|RegExp} [matchingConstraints.actionId] - a string or RegExp to match against
+   * the `action_id`
+   * @param {string} [matchingConstraints.type] - valid types include all
+   * [actions block elements](https://api.slack.com/reference/messaging/interactive-components),
+   * `select` only for menu selections, or `dialog_submission` only for dialog submissions
    * @param {boolean} [matchingConstraints.unfurl] - when `true` only match actions from an unfurl
    * @param {module:adapter~SlackMessageAdapter~ActionHandler} callback - the function to run when
    * an action is matched
@@ -258,8 +255,7 @@ export class SlackMessageAdapter {
     const actionConstraints = formatMatchingConstraints(matchingConstraints);
     actionConstraints.handlerType = 'action';
 
-    const error = validateConstraints(actionConstraints) ||
-      validateActionConstraints(actionConstraints);
+    const error = validateConstraints(actionConstraints);
     if (error) {
       debug('action could not be registered: %s', error.message);
       throw error;
@@ -281,10 +277,15 @@ export class SlackMessageAdapter {
    *
    * @param {object} matchingConstraints - the callback ID (as a string or RegExp) or
    * an object describing the constraints to select options requests for the handler.
-   * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExxp to match against
+   * @param {string|RegExp} [matchingConstraints.callbackId] - a string or RegExp to match against
    * the `callback_id`
-   * @param {string} [matchingConstraints.within] - when `interactive_message` only for menus in
-   * an interactive message, or when `dialog` only for menus in a dialog
+   * @param {string|RegExp} [matchingConstraints.blockId] - a string or RegExp to match against
+   * the `block_id`
+   * @param {string|RegExp} [matchingConstraints.actionId] - a string or RegExp to match against
+   * the `action_id`
+   * @param {string} [matchingConstraints.within] - `block_actions` only for external select
+   * in actions block, `interactive_message` only for menus in an interactive message, or
+   * `dialog` only for menus in a dialog
    * @param {module:adapter~SlackMessageAdapter~OptionsHandler} callback - the function to run when
    * an options request is matched
    * @returns {module:adapter~SlackMessageAdapter} - this instance (for chaining)
@@ -410,6 +411,18 @@ export class SlackMessageAdapter {
         if (isRegExp(constraints.callbackId) && !constraints.callbackId.test(payload.callback_id)) {
           return false;
         }
+        if (isString(constraints.blockId) && payload.block_id !== constraints.blockId) {
+          return false;
+        }
+        if (isRegExp(constraints.blockId) && !constraints.blockId.test(payload.block_id)) {
+          return false;
+        }
+        if (isString(constraints.actionId) && payload.action_id !== constraints.actionId) {
+          return false;
+        }
+        if (isRegExp(constraints.actionId) && !constraints.actionId.test(payload.action_id)) {
+          return false;
+        }
       }
 
       // if the action constraint is specified, only continue if it matches
@@ -448,17 +461,22 @@ export class SlackMessageAdapter {
       }
 
       if (constraints.handlerType === 'options') {
-        // a payload that represents an options request always has a name defined at the top level
-        if (!('name' in payload)) {
+        // a payload that represents an options request in attachments always has a name defined
+        // at the top level. in blocks the type is block_suggestion and has no name
+        if (!('name' in payload || (payload.type && payload.type === 'block_suggestion'))) {
           return false;
         }
 
-        // an options request always has a type at the top level which can be one of two values
+        // an options request always has a type at the top level which can be one of three values
         // that need to be mapped into the values for the `within` constraint:
         // * type:interactive_message => within:interactive_message
+        // * type:block_actions => within:block_actions
         // * type:dialog_suggestion => within:dialog
         if (constraints.within) {
           if (constraints.within === 'interactive_message' && payload.type !== 'interactive_message') {
+            return false;
+          }
+          if (constraints.within === 'block_actions' && payload.type !== 'block_actions') {
             return false;
           }
           if (constraints.within === 'dialog' && payload.type !== 'dialog_suggestion') {
