@@ -470,13 +470,13 @@ export class SlackMessageAdapter {
         // an options request always has a type at the top level which can be one of three values
         // that need to be mapped into the values for the `within` constraint:
         // * type:interactive_message => within:interactive_message
-        // * type:block_actions => within:block_actions
+        // * type:block_suggestion => within:block_actions
         // * type:dialog_suggestion => within:dialog
         if (constraints.within) {
           if (constraints.within === 'interactive_message' && payload.type !== 'interactive_message') {
             return false;
           }
-          if (constraints.within === 'block_actions' && payload.type !== 'block_actions') {
+          if (constraints.within === 'block_actions' && payload.type !== 'block_suggestion') {
             return false;
           }
           if (constraints.within === 'dialog' && payload.type !== 'dialog_suggestion') {
