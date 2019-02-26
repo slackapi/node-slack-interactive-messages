@@ -278,11 +278,23 @@ describe('SlackMessageAdapter', function () {
         this.adapter.action(constraints, this.actionHandler);
         assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
-      it('should fail with an invalid blockId', function () {
-        // Number is not a valid constraint
-        var constraints = { blockId: 10 };
+      it('invalid block_id types throw on registration', function () {
+        var handler = this.handler;
+        var adapter = this.adapter;
         assert.throws(function () {
-          this.adapter.action(constraints, this.actionHandler);
+          adapter.action({ blockId: 5 }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ blockId: true }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ blockId: [] }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ blockId: null }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ blockId: undefined }, handler);
         }, TypeError);
       });
       it('should register with actionId constraints successfully', function () {
@@ -290,11 +302,23 @@ describe('SlackMessageAdapter', function () {
         this.adapter.action(constraints, this.actionHandler);
         assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
-      it('should fail with an invalid actionId', function () {
-        // Boolean is not a valid constraint
-        var constraints = { actionId: false };
+      it('invalid action_id types throw on registration', function () {
+        var handler = this.handler;
+        var adapter = this.adapter;
         assert.throws(function () {
-          this.adapter.action(constraints, this.actionHandler);
+          adapter.action({ actionId: 5 }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ actionId: true }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ actionId: [] }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ actionId: null }, handler);
+        }, TypeError);
+        assert.throws(function () {
+          adapter.action({ actionId: undefined }, handler);
         }, TypeError);
       });
       it('should register with compound block constraints successfully', function () {
