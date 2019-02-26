@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/slackapi/node-slack-interactive-messages/branch/master/graph/badge.svg)](https://codecov.io/gh/slackapi/node-slack-interactive-messages)
 
 Build your Slack Apps with rich and engaging user interactions using block actions, buttons, menus, 
-and dialogs.The package will help you start with sensible and secure defaults.
+and dialogs. The package will help you start with sensible and secure defaults.
 
 The adapter gives you a meaningful API to handle actions from all of Slack's interactive
 message components
@@ -164,7 +164,7 @@ function handlerFunction() {
 }
 ```
 > ⚠️ If your app is using [blocks](https://api.slack.com/messaging/composing/layouts), you _must_
-use an object to describe contraints (`block_id` and `action_id`). Blocks have no `callback_id`.
+use an object to describe constraints (`block_id` and `action_id`). Blocks have no `callback_id`.
 There are examples below.
 
 Use an object to describe other constraints, even combine multiple constraints to create more
