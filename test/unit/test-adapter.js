@@ -837,6 +837,14 @@ describe('SlackMessageAdapter', function () {
           }],
           response_url: 'https://example.com'
         };
+        this.buttonPayloadBlocks = {
+          actions: [{
+            type: 'button',
+            block_id: 'b_id',
+            action_id: 'a_id'
+          }],
+          response_url: 'https://example.com'
+        };
         this.buttonAppUnfurlPayload = Object.assign({}, this.buttonPayload, {
           is_app_unfurl: true
         });
@@ -895,6 +903,56 @@ describe('SlackMessageAdapter', function () {
         it('should return undefined with a RegExp mismatch', function () {
           var response;
           this.adapter.action(/b/, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        // TODO: successful match on string, successful match on regexp, matches when registered
+        // as an options handler instead
+      });
+
+      describe('block ID based matching', function () {
+        beforeEach(function () {
+          this.payload = this.buttonPayloadBlocks;
+        });
+
+        it('should return undefined with a string mismatch', function () {
+          var response;
+          this.adapter.action({ blockId: 'b' }, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        it('should return undefined with a RegExp mismatch', function () {
+          var response;
+          this.adapter.action({ blockId: /b/ }, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        // TODO: successful match on string, successful match on regexp, matches when registered
+        // as an options handler instead
+      });
+
+      describe('action ID based matching', function () {
+        beforeEach(function () {
+          this.payload = this.buttonPayloadBlocks;
+        });
+
+        it('should return undefined with a string mismatch', function () {
+          var response;
+          this.adapter.action({ actionId: 'b' }, this.callback);
+          response = this.adapter.dispatch(this.payload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        it('should return undefined with a RegExp mismatch', function () {
+          var response;
+          this.adapter.action({ actionId: /b/ }, this.callback);
           response = this.adapter.dispatch(this.payload);
           assert(this.callback.notCalled);
           assert.isUndefined(response);

@@ -411,12 +411,20 @@ export class SlackMessageAdapter {
         if (isRegExp(constraints.callbackId) && !constraints.callbackId.test(payload.callback_id)) {
           return false;
         }
+      }
+
+      // if the block ID constraint is specified, only continue if it matches
+      if (constraints.blockId) {
         if (isString(constraints.blockId) && payload.block_id !== constraints.blockId) {
           return false;
         }
         if (isRegExp(constraints.blockId) && !constraints.blockId.test(payload.block_id)) {
           return false;
         }
+      }
+
+      // if the action ID constraint is specified, only continue if it matches
+      if (constraints.actionId) {
         if (isString(constraints.actionId) && payload.action_id !== constraints.actionId) {
           return false;
         }
