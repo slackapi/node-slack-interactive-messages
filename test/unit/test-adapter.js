@@ -874,6 +874,11 @@ describe('SlackMessageAdapter', function () {
           callback_id: 'id',
           type: 'interactive_message'
         };
+        this.optionsFromBlockMessagePayload = {
+          value: 'opti',
+          block_id: 'id',
+          type: 'block_suggestion'
+        };
         this.optionsFromDialogPayload = {
           name: 'pick_a_thing',
           value: 'opti',
@@ -1025,6 +1030,13 @@ describe('SlackMessageAdapter', function () {
           response = this.adapter.dispatch(this.optionsFromDialogPayload);
           assert(this.callback.notCalled);
           assert.isUndefined(response);
+
+          unregisterAllHandlers(this.adapter);
+
+          this.adapter.options({ within: 'block_actions' }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromInteractiveMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
         });
         it('should match when within is not present in constraints', function () {
           this.adapter.options({}, this.callback);
@@ -1034,6 +1046,11 @@ describe('SlackMessageAdapter', function () {
         it('should match using within constraint on options requests from interactive messages', function () {
           this.adapter.options({ within: 'interactive_message' }, this.callback);
           this.adapter.dispatch(this.optionsFromInteractiveMessagePayload);
+          assert(this.callback.called);
+        });
+        it('should match using within constraint on options requests from Block Kit messages', function () {
+          this.adapter.options({ within: 'block_actions' }, this.callback);
+          this.adapter.dispatch(this.optionsFromBlockMessagePayload);
           assert(this.callback.called);
         });
         it('should match using within constraint on options requests from dialog', function () {
