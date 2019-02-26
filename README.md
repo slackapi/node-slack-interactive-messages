@@ -190,6 +190,7 @@ function handlerFunction() {
 ```
 
 #### Action matching with blocks
+
 Apps using [blocks](https://api.slack.com/messaging/composing/layouts) must use an object to
 describe constraints since they contain no `callback_id`. Instead, you can use the `block_id` and
 `action_id` described in the [interactive component documentation](https://api.slack.com/reference/messaging/interactive-components).

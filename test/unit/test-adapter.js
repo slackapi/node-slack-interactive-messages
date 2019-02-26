@@ -278,10 +278,24 @@ describe('SlackMessageAdapter', function () {
         this.adapter.action(constraints, this.actionHandler);
         assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
       });
+      it('should fail with an invalid blockId', function () {
+        // Number is not a valid constraint
+        var constraints = { blockId: 10 };
+        assert.throws(function () {
+          this.adapter.action(constraints, this.actionHandler);
+        }, TypeError);
+      });
       it('should register with actionId constraints successfully', function () {
         var constraints = { actionId: 'my_action' };
         this.adapter.action(constraints, this.actionHandler);
         assertHandlerRegistered(this.adapter, this.actionHandler, constraints);
+      });
+      it('should fail with an invalid actionId', function () {
+        // Boolean is not a valid constraint
+        var constraints = { actionId: false };
+        assert.throws(function () {
+          this.adapter.action(constraints, this.actionHandler);
+        }, TypeError);
       });
       it('should register with compound block constraints successfully', function () {
         var constraints = { blockId: 'my_block', actionId: 'wham' };
