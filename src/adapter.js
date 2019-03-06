@@ -404,7 +404,6 @@ export class SlackMessageAdapter {
   matchCallback(payload) {
     return this.callbacks.find(([constraints]) => {
       // if the callback ID constraint is specified, only continue if it matches
-      console.log(payload);
       if (constraints.callbackId) {
         if (isString(constraints.callbackId) && payload.callback_id !== constraints.callbackId) {
           return false;
