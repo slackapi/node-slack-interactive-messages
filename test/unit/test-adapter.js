@@ -975,6 +975,22 @@ describe('SlackMessageAdapter', function () {
           assert(this.callback.called);
         });
 
+        it('should return undefined with a string mismatch with options', function () {
+          var response;
+          this.adapter.options({ blockId: 'a' }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromBlockMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        it('should return undefined with a RegExp mismatch with options', function () {
+          var response;
+          this.adapter.options({ blockId: /a/ }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromBlockMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
         it('should match with matching blockId with options', function () {
           this.adapter.options({ blockId: 'b_id' }, this.callback);
           this.adapter.dispatch(this.optionsFromBlockMessagePayload);
@@ -1019,6 +1035,22 @@ describe('SlackMessageAdapter', function () {
           this.adapter.action({ actionId: /a/ }, this.callback);
           this.adapter.dispatch(this.payload);
           assert(this.callback.called);
+        });
+
+        it('should return undefined with a string mismatch with options', function () {
+          var response;
+          this.adapter.options({ actionId: 'b' }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromBlockMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
+        });
+
+        it('should return undefined with a RegExp mismatch with options', function () {
+          var response;
+          this.adapter.options({ actionId: /b/ }, this.callback);
+          response = this.adapter.dispatch(this.optionsFromBlockMessagePayload);
+          assert(this.callback.notCalled);
+          assert.isUndefined(response);
         });
 
         it('should match with matching string actionId with options', function () {
